@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }} · ${{ matrix.preset }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        preset: [release, debug]   # debug = AddressSanitizer + UBSan
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config libcurl4-openssl-dev libsqlite3-dev libsodium-dev
+
+      - name: Install dependencies (macOS; libcurl and SQLite ship with the SDK)
+        if: runner.os == 'macOS'
+        run: brew install ninja libsodium
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }} --parallel
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Unit tests (C++ and web)
+        run: ctest --preset ${{ matrix.preset }}
+
+      - name: Benchmark smoke test (Dijkstra and A* must agree)
+        if: matrix.preset == 'release'
+        run: ./build/release/umbra_bench data/tempe.osm.json 200
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t umbra .
+
+      - name: Smoke test (server starts and answers)
+        run: |
+          docker run -d --name umbra -p 8080:8080 -e UMBRA_WEATHER=off umbra
+          for i in $(seq 1 30); do curl -sf localhost:8080/api/health && break; sleep 1; done
+          curl -sf "localhost:8080/api/search?q=hayden%20library" | grep -q '"kind":"building"'
+          curl -sf "localhost:8080/api/info" | grep -q '"accounts":true'
+          curl -sfI localhost:8080/ | grep -qi 'content-security-policy'
+          docker rm -f umbra

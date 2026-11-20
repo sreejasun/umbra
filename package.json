@@ -1,0 +1,12 @@
+{
+  "name": "umbra-web",
+  "private": true,
+  "description": "Umbra web app: unit tests for the browser modules (no build step, no dependencies).",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/web/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

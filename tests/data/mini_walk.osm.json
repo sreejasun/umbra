@@ -1,0 +1,32 @@
+{
+  "version": 0.6,
+  "generator": "hand-written test fixture",
+  "elements": [
+    { "type": "node", "id": 1, "lat": 33.4000, "lon": -111.9400 },
+    { "type": "node", "id": 2, "lat": 33.4000, "lon": -111.9390 },
+    { "type": "node", "id": 3, "lat": 33.4000, "lon": -111.9380 },
+    { "type": "node", "id": 4, "lat": 33.4010, "lon": -111.9400 },
+    { "type": "node", "id": 5, "lat": 33.4010, "lon": -111.9390 },
+    { "type": "node", "id": 6, "lat": 33.4010, "lon": -111.9380 },
+    { "type": "node", "id": 7, "lat": 33.4020, "lon": -111.9400 },
+    { "type": "node", "id": 8, "lat": 33.4020, "lon": -111.9380 },
+
+    { "type": "way", "id": 100, "nodes": [1, 2, 3],
+      "tags": { "highway": "residential", "name": "Main Street", "oneway": "yes" } },
+    { "type": "way", "id": 101, "nodes": [1, 4],
+      "tags": { "highway": "footway", "footway": "sidewalk" } },
+    { "type": "way", "id": 102, "nodes": [4, 5, 6],
+      "tags": { "highway": "footway", "name": "Palm Walk", "covered": "yes" } },
+    { "type": "way", "id": 103, "nodes": [3, 6],
+      "tags": { "highway": "steps" } },
+    { "type": "way", "id": 104, "nodes": [2, 5],
+      "tags": { "highway": "cycleway", "foot": "designated" } },
+
+    { "type": "way", "id": 200, "nodes": [4, 7],
+      "tags": { "highway": "motorway", "name": "Freeway" } },
+    { "type": "way", "id": 201, "nodes": [6, 8],
+      "tags": { "highway": "footway", "foot": "no" } },
+    { "type": "way", "id": 202, "nodes": [7, 8],
+      "tags": { "highway": "service", "access": "private" } }
+  ]
+}

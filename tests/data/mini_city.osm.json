@@ -1,0 +1,37 @@
+{
+  "version": 0.6,
+  "generator": "hand-written test fixture",
+  "elements": [
+    { "type": "node", "id": 1, "lat": 33.4000, "lon": -111.9400 },
+    { "type": "node", "id": 2, "lat": 33.4000, "lon": -111.9390 },
+    { "type": "node", "id": 3, "lat": 33.4000, "lon": -111.9380 },
+    { "type": "node", "id": 4, "lat": 33.4010, "lon": -111.9400 },
+    { "type": "node", "id": 5, "lat": 33.4010, "lon": -111.9390 },
+    { "type": "node", "id": 6, "lat": 33.4010, "lon": -111.9380 },
+    { "type": "node", "id": 7, "lat": 33.4015, "lon": -111.9390 },
+    { "type": "node", "id": 8, "lat": 33.4100, "lon": -111.9300 },
+    { "type": "node", "id": 9, "lat": 33.4100, "lon": -111.9290 },
+
+    { "type": "way", "id": 100, "nodes": [1, 2, 3],
+      "tags": { "highway": "residential", "name": "Main Street", "maxspeed": "25 mph" } },
+    { "type": "way", "id": 101, "nodes": [1, 4],
+      "tags": { "highway": "residential", "name": "First Avenue" } },
+    { "type": "way", "id": 102, "nodes": [2, 5],
+      "tags": { "highway": "residential", "name": "Second Avenue" } },
+    { "type": "way", "id": 103, "nodes": [3, 6],
+      "tags": { "highway": "tertiary", "name": "Third Avenue", "maxspeed": "40" } },
+    { "type": "way", "id": 104, "nodes": [4, 5, 6],
+      "tags": { "highway": "residential", "name": "Oak Street", "oneway": "-1" } },
+
+    { "type": "way", "id": 200, "nodes": [5, 7],
+      "tags": { "highway": "residential", "access": "private", "name": "Private Drive" } },
+    { "type": "way", "id": 201, "nodes": [1, 6],
+      "tags": { "highway": "footway", "name": "Campus Path" } },
+    { "type": "way", "id": 202, "nodes": [8, 9],
+      "tags": { "highway": "residential", "name": "Island Road" } },
+    { "type": "way", "id": 203, "nodes": [6, 999],
+      "tags": { "highway": "residential", "name": "Clipped Road" } },
+    { "type": "way", "id": 204, "nodes": [2, 6],
+      "tags": { "name": "Untagged Way" } }
+  ]
+}

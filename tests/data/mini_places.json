@@ -1,0 +1,22 @@
+{
+  "version": 0.6,
+  "generator": "hand-written test fixture",
+  "elements": [
+    { "type": "way", "id": 1, "center": { "lat": 33.4004, "lon": -111.9392 },
+      "tags": { "name": "Desert State University", "amenity": "university", "short_name": "DSU" } },
+    { "type": "node", "id": 2, "lat": 33.4001, "lon": -111.9381,
+      "tags": { "name": "Cactus Coffee", "amenity": "cafe" } },
+    { "type": "node", "id": 3, "lat": 33.4002, "lon": -111.9382,
+      "tags": { "name": "Cactus Coffee", "shop": "coffee" } },
+    { "type": "node", "id": 4, "lat": 33.4008, "lon": -111.9398,
+      "tags": { "name": "Lot 7", "amenity": "parking" } },
+    { "type": "node", "id": 5, "lat": 33.4009, "lon": -111.9385,
+      "tags": { "name": "Main Street Station", "railway": "tram_stop" } },
+    { "type": "node", "id": 6, "lat": 33.4006, "lon": -111.9389,
+      "tags": { "amenity": "restaurant" } },
+    { "type": "relation", "id": 7,
+      "tags": { "name": "No Coordinates Park", "leisure": "park" } },
+    { "type": "node", "id": 8, "lat": 40.0, "lon": -100.0,
+      "tags": { "name": "Faraway Diner", "amenity": "restaurant" } }
+  ]
+}

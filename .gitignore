@@ -1,0 +1,61 @@
+# ---------------------------------------------------------------- Build output
+build/
+out/
+cmake-build-*/
+_deps/
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+compile_commands.json
+Testing/
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# ---------------------------------------------------------------- Secrets / local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---------------------------------------------------------------- Runtime data
+# Account database (SQLite + WAL files): never commit user data.
+var/
+*.db
+*.db-wal
+*.db-shm
+
+# ---------------------------------------------------------------- Map data
+# The bundled Tempe extract is committed so the project runs out of the box.
+# Extracts you download for other cities are kept local by default.
+data/*.osm.json
+data/*.places.json
+data/*.shade.json
+data/*.campus.json
+data/*.water.json
+!data/tempe.osm.json
+!data/tempe.places.json
+!data/tempe.walk.osm.json
+!data/tempe.shade.json
+!data/tempe.campus.json
+!data/tempe.water.json
+*.tmp
+
+# ---------------------------------------------------------------- Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# ---------------------------------------------------------------- Tooling
+.cache/
+.clangd/
+*.log

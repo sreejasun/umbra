@@ -1,0 +1,18 @@
+{
+  "sourceUpdated": "2026-11-20T22:00:00Z",
+  "results": [
+    {
+      "location": { "description": "Loop 202 eastbound", "length": 1300,
+        "shape": { "links": [ { "points": [ { "lat": 33.40, "lng": -111.95 }, { "lat": 33.41, "lng": -111.94 } ], "length": 1300 } ] } },
+      "currentFlow": { "speed": 5.0, "speedUncapped": 5.0, "freeFlow": 25.0, "jamFactor": 8.0, "confidence": 0.95, "traversability": "open" }
+    },
+    {
+      "location": { "description": "closed ramp", "length": 100,
+        "shape": { "links": [ { "points": [ { "lat": 33.50, "lng": -111.80 }, { "lat": 33.501, "lng": -111.80 } ] } ] } },
+      "currentFlow": { "freeFlow": 20.0, "jamFactor": 10.0, "traversability": "closed" }
+    },
+    { "location": { "shape": { "links": [] } }, "currentFlow": { "freeFlow": 10.0, "jamFactor": 0.0 } },
+    { "location": { "shape": { "links": [ { "points": [ { "lat": 1, "lng": 2 }, { "lat": 1.1, "lng": 2 } ] } ] } },
+      "currentFlow": { "freeFlow": 0, "jamFactor": 0.0 } }
+  ]
+}

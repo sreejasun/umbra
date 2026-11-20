@@ -1,0 +1,31 @@
+{
+  "version": 0.6,
+  "generator": "hand-written test fixture",
+  "elements": [
+    { "type": "way", "id": 1, "tags": { "building": "yes", "height": "24 m" },
+      "geometry": [ { "lat": 33.4001, "lon": -111.9401 }, { "lat": 33.4001, "lon": -111.9399 },
+                    { "lat": 33.4003, "lon": -111.9399 }, { "lat": 33.4003, "lon": -111.9401 },
+                    { "lat": 33.4001, "lon": -111.9401 } ] },
+    { "type": "way", "id": 2, "tags": { "building": "carport" },
+      "geometry": [ { "lat": 33.4005, "lon": -111.9395 }, { "lat": 33.4005, "lon": -111.9394 },
+                    { "lat": 33.4006, "lon": -111.9394 }, { "lat": 33.4005, "lon": -111.9395 } ] },
+    { "type": "way", "id": 3, "tags": { "building": "apartments", "building:levels": "4" },
+      "geometry": [ { "lat": 33.4007, "lon": -111.9395 }, { "lat": 33.4007, "lon": -111.9394 },
+                    { "lat": 33.4008, "lon": -111.9394 }, { "lat": 33.4007, "lon": -111.9395 } ] },
+    { "type": "relation", "id": 4, "tags": { "building": "university", "type": "multipolygon" },
+      "members": [
+        { "type": "way", "ref": 40, "role": "outer",
+          "geometry": [ { "lat": 33.4010, "lon": -111.9390 }, { "lat": 33.4010, "lon": -111.9388 },
+                        { "lat": 33.4012, "lon": -111.9388 }, { "lat": 33.4010, "lon": -111.9390 } ] },
+        { "type": "way", "ref": 41, "role": "inner",
+          "geometry": [ { "lat": 33.4011, "lon": -111.9389 }, { "lat": 33.4011, "lon": -111.93889 },
+                        { "lat": 33.40111, "lon": -111.93889 } ] } ] },
+    { "type": "way", "id": 5, "tags": { "building": "no" },
+      "geometry": [ { "lat": 33.40, "lon": -111.94 }, { "lat": 33.40, "lon": -111.93 },
+                    { "lat": 33.41, "lon": -111.93 } ] },
+    { "type": "node", "id": 6, "lat": 33.4015, "lon": -111.9385,
+      "tags": { "natural": "tree", "height": "12", "diameter_crown": "10" } },
+    { "type": "way", "id": 7, "tags": { "natural": "tree_row" },
+      "geometry": [ { "lat": 33.4020, "lon": -111.9400 }, { "lat": 33.4020, "lon": -111.93957 } ] }
+  ]
+}

@@ -1,0 +1,12 @@
+# Keep CI actions and the Docker base image up to date (C++ dependencies are
+# pinned in cmake/Dependencies.cmake and updated deliberately).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly

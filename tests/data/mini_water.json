@@ -1,0 +1,10 @@
+{
+  "version": 0.6,
+  "generator": "hand-written test fixture (shape of scripts/fetch_water.sh output)",
+  "elements": [
+    { "type": "node", "id": 1, "lat": 33.4005, "lon": -111.9395, "tags": { "amenity": "drinking_water", "bottle": "yes" } },
+    { "type": "node", "id": 2, "lat": 33.4006, "lon": -111.9381, "tags": { "amenity": "drinking_water", "name": "Library fountain" } },
+    { "type": "node", "id": 3, "lat": 33.4007, "lon": -111.9382, "tags": { "amenity": "drinking_water", "access": "private" } },
+    { "type": "way", "id": 4, "center": { "lat": 33.4002, "lon": -111.9390 }, "tags": { "amenity": "water_point" } }
+  ]
+}
