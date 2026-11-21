@@ -36,6 +36,9 @@ All notable changes to Umbra. Dates are in UTC.
   installable web app (PWA), Dockerfile, CodeQL and Dependabot.
 
 ### Fixed
+- Switching between Drive and Walk no longer starts the walk from the drive route's road: the points
+  you choose (your location, a map click) are kept, and each mode snaps them to its own network.
+  A dotted line links your point to the route where they differ.
 - Emergency alerts take a fresh, high-accuracy location fix (started when the countdown starts)
   instead of reusing the last known position, which could be stale.
 

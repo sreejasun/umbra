@@ -262,6 +262,24 @@ export class MapView {
     }
   }
 
+  /**
+   * Dotted lines from requested points to the route (the walk from your location to the nearest road),
+   * drawn only when they are long enough to notice.
+   * @param {[{lat: number, lng: number}, {lat: number, lng: number}][]} links
+   */
+  drawConnectors(links) {
+    for (const [a, b] of links) {
+      if (this.map.distance(a, b) < 10) continue;
+      L.polyline([a, b], {
+        color: cssVar("--text-subtle"),
+        weight: 3,
+        dashArray: "2 7",
+        lineCap: "round",
+        interactive: false,
+      }).addTo(this.routeLayer);
+    }
+  }
+
   /** Bring a point into view (e.g. a place picked from search), zooming in if far out. */
   reveal(latlng) {
     if (this.map.getBounds().pad(-0.15).contains(latlng) && this.map.getZoom() >= 14) return;

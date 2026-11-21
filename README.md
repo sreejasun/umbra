@@ -95,7 +95,7 @@ Dijkstra runs, instead of one route per fountain.
 
 ## Directions to ASU buildings
 
-![Walk from the Memorial Union to Hayden Library in the evening: it ends at the library's mapped entrance and prefers lit streets](docs/images/walk-building.jpg)
+![Walk from your location at the Memorial Union to Hayden Library in the evening: it ends at the library's mapped entrance and prefers lit streets](docs/images/walk-building.jpg)
 
 Each building knows its mapped entrances or, where none are mapped, 12 points around its footprint.
 All of them become targets of **one** multi-target search, so the route ends at the door that is

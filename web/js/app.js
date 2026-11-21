@@ -678,13 +678,12 @@ async function setWaypoint(kind, latlng, label = null, access = null) {
   }
   syncUrl();
   if (access || label) return;
-  // Only one point so far: show which intersection was picked.
+  // Only one point so far: name it after the nearest intersection (the point itself is kept, so
+  // each travel mode can snap it to its own network).
   const id = ++state.requestId;
   try {
     const snapped = await api.nearest(state[kind]);
     if (id !== state.requestId) return;
-    state[kind] = toLatLng(snapped.position);
-    view.setMarker(kind, state[kind]);
     setWaypointLabel(kind, snapped.label);
   } catch (err) {
     if (id !== state.requestId) return;
@@ -773,11 +772,11 @@ function routeChoices(r) {
 
 /** Show a route response (from planning or the assistant) on the map and in the sheet. */
 async function displayRoute(route, id) {
-  // Move markers onto the points the engine routed between (for a building, the entrance it picked).
-  state.origin = toLatLng(route.origin.position);
-  state.destination = toLatLng(route.destination.position);
-  view.setMarker("origin", state.origin);
-  view.setMarker("destination", state.destination);
+  // Pins go where the route really starts and ends (the nearest road or walkway, or the entrance a
+  // building route picked). The requested points stay in `state` untouched, so switching between
+  // Drive and Walk re-snaps from where the user is, not from the other mode's road.
+  view.setMarker("origin", toLatLng(route.origin.position));
+  view.setMarker("destination", toLatLng(route.destination.position));
   setWaypointLabel("origin", route.origin.label);
   setWaypointLabel("destination", route.destination.label);
   syncUrl();
@@ -816,6 +815,13 @@ async function displayRoute(route, id) {
 
 function drawChoices(fit) {
   view.drawRoutes(state.choices, state.selected, selectRoute, { fit });
+  // Dotted links from the requested points (e.g. the blue dot) to where the route starts and ends.
+  const r = state.response;
+  if (!r) return;
+  const links = [];
+  if (!state.access.origin) links.push([state.origin, toLatLng(r.origin.position)]);
+  if (!state.access.destination) links.push([toLatLng(r.destination.position), state.destination]);
+  view.drawConnectors(links.filter(([a, b]) => a && b));
 }
 
 function selectRoute(index) {
@@ -936,6 +942,8 @@ function renderStats(route) {
 function showAssistantRoute(route) {
   selectOption("mode", route.mode);
   applyMode();
+  state.origin = toLatLng(route.origin.position);
+  state.destination = toLatLng(route.destination.position);
   state.labels = { origin: route.origin.label, destination: route.destination.label };
   state.access = { origin: null, destination: null };
   const zoned = unixToZoned(route.time, state.timezone);
