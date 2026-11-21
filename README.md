@@ -153,6 +153,13 @@ the server.
 
 ## Benchmark
 
+![Dijkstra and A* side by side on the same trip: Dijkstra explores outward in every direction (11,741 nodes) while A* heads for the destination (2,511 nodes, 79% fewer); both end with a 4.94 km shortest route](docs/images/dijkstra-vs-astar.gif)
+
+The same trip (ASU → Tempe Marketplace, shortest route) searched by both algorithms, recorded from
+the app's search animation with both sides revealing nodes at the same rate. Dijkstra grows a circle
+of settled nodes around the start; A\* is pulled toward the destination by its straight-line
+heuristic and stops after exploring 79 % fewer nodes. Both return a route of the same length.
+
 500 random origin/destination pairs on the Tempe network (Apple clang 21, `-O3`, single thread):
 
 | Metric | Algorithm | Avg nodes settled | Avg time | p50 | p95 |

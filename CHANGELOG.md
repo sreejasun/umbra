@@ -10,6 +10,7 @@ All notable changes to Umbra. Dates are in UTC.
   a bottom sheet on phones and a side panel on desktop, 2-3 **route choices** (penalty method for
   drives, shade preferences for walks), Profile & settings with a **light / dark / system theme**,
   Developer mode for the engine statistics, and an Ask Umbra button that also helps find settings.
+- README animation comparing Dijkstra and A\* on the same trip.
 - Live weather and traffic refresh on background threads, so a slow provider never delays a route.
 - **Sun-glare avoidance for drivers** (3× cost for minutes into a low sun, a 35° setting for drivers
   whose visor doesn't shade their eyes) and departure times for drives.
