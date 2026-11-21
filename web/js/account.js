@@ -1,4 +1,5 @@
-// Sign in / create account, saved places and recent trips (stored on the server, see docs/API.md).
+// Account screen (#/account): sign in / create account, saved places and recent
+// trips (stored on the server, see docs/API.md).
 
 import { api } from "./api.js";
 
@@ -21,7 +22,6 @@ export class AccountPanel {
     this.toast = toast;
     this.user = null;
     this.mode = "login";
-    this.dialog = $("account-dialog");
     this.bind();
   }
 
@@ -30,7 +30,7 @@ export class AccountPanel {
   }
 
   async init() {
-    $("account-btn").hidden = false;
+    $("profile-card").hidden = false;
     try {
       this.user = (await api.me()).user;
     } catch {
@@ -39,13 +39,17 @@ export class AccountPanel {
     this.render();
   }
 
+  /** Show the account screen (sign-in form, or places and trips). */
   open() {
+    window.location.hash = "#/account";
+  }
+
+  /** Called when the account screen is shown. */
+  show() {
     if (this.signedIn) this.refreshLists();
-    this.dialog.showModal();
   }
 
   bind() {
-    $("account-btn").addEventListener("click", () => this.open());
     document.querySelectorAll("[data-auth]").forEach((button) =>
       button.addEventListener("click", () => this.setMode(button.dataset.auth)),
     );
@@ -69,7 +73,7 @@ export class AccountPanel {
       await api.deleteAccount();
       this.user = null;
       this.render();
-      this.dialog.close();
+      window.location.hash = "#/";
       this.toast("Your account and data were deleted.");
     });
   }
@@ -107,6 +111,14 @@ export class AccountPanel {
 
   render() {
     $("account-label").textContent = this.user ? this.user.name : "Sign in";
+    $("account-sub").textContent = this.user ? `${this.user.email} · Saved places and trips` : "Save places and see your recent trips";
+    $("profile-initial").textContent = this.user ? this.user.name.trim().charAt(0).toUpperCase() : "?";
+    $("account-actions").hidden = !this.user;
+    const initial = $("account-initial");
+    initial.textContent = this.user ? this.user.name.trim().charAt(0).toUpperCase() : "";
+    initial.hidden = !this.user;
+    $("account-btn").querySelector("svg").toggleAttribute("hidden", Boolean(this.user));
+    $("account-btn").classList.toggle("is-signed-in", Boolean(this.user));
     $("account-signed-out").hidden = this.signedIn;
     $("account-signed-in").hidden = !this.signedIn;
     if (this.user) {
@@ -164,10 +176,7 @@ export class AccountPanel {
         small.textContent = meta;
         button.append(small);
       }
-      button.addEventListener("click", () => {
-        pick();
-        this.dialog.close();
-      });
+      button.addEventListener("click", pick);
       li.append(button);
       if (remove) {
         const del = document.createElement("button");

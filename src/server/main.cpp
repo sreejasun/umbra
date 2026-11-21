@@ -132,8 +132,11 @@ int main(int argc, char** argv) {
 
   std::unique_ptr<umbra::WeatherService> weather;
   if (cfg.weather && online) {
-    weather = std::make_unique<umbra::WeatherService>(graph.bounds().center(), get,
-                                                      umbra::WeatherServiceOptions{cfg.weather_url, {}});
+    umbra::WeatherServiceOptions options;
+    options.base_url = cfg.weather_url;
+    options.cache.background = true;  // requests never wait for Open-Meteo
+    weather = std::make_unique<umbra::WeatherService>(graph.bounds().center(), get, options);
+    (void)weather->forecast();  // start the first fetch now
     std::cout << "  weather:     live from Open-Meteo (refreshed every 10 min)\n";
   }
 
@@ -141,7 +144,9 @@ int main(int argc, char** argv) {
   if (!cfg.here_api_key.empty() && online) {
     umbra::TrafficServiceOptions options;
     options.base_url = cfg.traffic_url;
+    options.cache.background = true;  // requests never wait for HERE
     traffic = std::make_unique<umbra::TrafficService>(graph, cfg.here_api_key, get, options);
+    (void)traffic->current();  // start the first fetch now
     std::cout << "  traffic:     live from HERE (refreshed every 15 min)\n";
   } else {
     std::cout << "  (no live traffic; set HERE_API_KEY to enable it)\n";

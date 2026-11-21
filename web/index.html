@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Umbra · Fastest drives. Shadiest walks.</title>
-  <meta name="description" content="Umbra: fastest drives and shadiest walks on Tempe's real road network, powered by a C++ Dijkstra / A* engine with sun-and-shadow modelling.">
+  <meta name="description" content="Umbra: fastest drives and shadiest walks on Tempe's real road network, powered by a C++ routing engine with sun-and-shadow modelling.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 
   <!-- Installable web app (Add to Home Screen on iPhone, Install on Android/desktop) -->
@@ -24,331 +24,399 @@
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="css/app.css">
 </head>
-<body data-mode="drive">
-  <div class="app">
-    <!-- ================================================================ Sidebar -->
-    <aside class="sidebar" aria-label="Route planner">
-      <header class="brand">
-        <div class="brand__logo" aria-hidden="true">
-          <!-- Half sun, half shadow -->
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"/>
-            <path d="M12 7a5 5 0 0 0 0 10z" fill="currentColor"/>
-            <path d="M12 2v2.5M12 19.5V22M19.5 12H22M17.3 6.7l1.8-1.8M17.3 17.3l1.8 1.8"/>
-          </svg>
-        </div>
-        <div class="brand__text">
-          <h1 class="brand__title">Umbra</h1>
-          <p class="brand__subtitle">Fastest drives. Shadiest walks. · <span id="region-name">Loading…</span></p>
-        </div>
-        <button type="button" class="account-btn" id="account-btn" aria-haspopup="dialog" hidden>
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
-          <span id="account-label">Sign in</span>
-        </button>
-      </header>
+<body data-view="explore" data-mode="drive">
+  <h1 class="visually-hidden">Umbra: fastest drives, shadiest walks</h1>
+  <div id="map" role="application" aria-label="Map"></div>
 
-      <div class="sidebar__scroll">
-        <!-- Trip -->
-        <section class="card" aria-labelledby="trip-heading">
-          <div class="card__header">
-            <h2 id="trip-heading" class="card__title">Trip</h2>
-            <div class="card__actions">
-              <button class="icon-btn" id="swap-btn" type="button" title="Swap start and destination" aria-label="Swap start and destination" disabled>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 4 3 8M7 4l4 4M17 20V4m0 16-4-4m4 4 4-4"/></svg>
-              </button>
-              <button class="icon-btn" id="clear-btn" type="button" title="Clear route (Esc)" aria-label="Clear route" disabled>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
-              </button>
-            </div>
-          </div>
-          <ol class="waypoints">
-            <li class="waypoint" id="wp-origin">
-              <span class="waypoint__pin waypoint__pin--a" aria-hidden="true">A</span>
-              <div class="waypoint__body">
-                <label class="waypoint__label" for="search-origin">Start</label>
-                <div class="search search--with-action">
-                  <input class="search__input" id="search-origin" type="text" role="combobox"
-                         aria-autocomplete="list" aria-expanded="false" aria-controls="search-origin-list"
-                         placeholder="Search or click the map" autocomplete="off" spellcheck="false">
-                  <button type="button" class="search__action" id="use-location" title="Use my current location" aria-label="Use my current location">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3"/></svg>
-                  </button>
-                  <ul class="search__list" id="search-origin-list" role="listbox" aria-label="Start suggestions" hidden></ul>
-                </div>
-              </div>
-            </li>
-            <li class="waypoint" id="wp-destination">
-              <span class="waypoint__pin waypoint__pin--b" aria-hidden="true">B</span>
-              <div class="waypoint__body">
-                <label class="waypoint__label" for="search-destination">Destination</label>
-                <div class="search">
-                  <input class="search__input" id="search-destination" type="text" role="combobox"
-                         aria-autocomplete="list" aria-expanded="false" aria-controls="search-destination-list"
-                         placeholder="Search or click the map" autocomplete="off" spellcheck="false">
-                  <ul class="search__list" id="search-destination-list" role="listbox" aria-label="Destination suggestions" hidden></ul>
-                </div>
-              </div>
-            </li>
-          </ol>
-          <p class="hint">Search a place, campus building, street or intersection (try <em>Hayden Library</em>, <em>MU</em> or <em>Mill &amp; University</em>), or click the map. Press <kbd>/</kbd> to search.</p>
-        </section>
+  <!-- ================================================================ Explore: search bar -->
+  <header class="topbar" id="topbar">
+    <div class="searchbar">
+      <a href="#/" class="logo" aria-label="Umbra home">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="5"/><path d="M12 7a5 5 0 0 0 0 10z" fill="currentColor"/>
+          <path d="M12 2v2.5M12 19.5V22M19.5 12H22M17.3 6.7l1.8-1.8M17.3 17.3l1.8 1.8"/>
+        </svg>
+      </a>
+      <div class="search search--bar">
+        <input class="search__input" id="search-main" type="search" role="combobox" aria-autocomplete="list"
+               aria-expanded="false" aria-controls="search-main-list" aria-label="Search for a place, building or street"
+               placeholder="Search Umbra" autocomplete="off" spellcheck="false" enterkeyhint="search">
+        <ul class="search__list" id="search-main-list" role="listbox" aria-label="Suggestions" hidden></ul>
+      </div>
+      <a href="#/settings" class="avatar" id="account-btn" aria-label="Profile and settings">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+        <span id="account-initial" hidden></span>
+      </a>
+    </div>
+  </header>
 
-        <!-- Options -->
-        <section class="card" aria-labelledby="options-heading">
-          <h2 id="options-heading" class="card__title">Options</h2>
-          <div class="segmented segmented--full mode-switch" role="radiogroup" aria-label="Travel mode" data-setting="mode">
-            <button type="button" role="radio" aria-checked="true" data-value="drive">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14v-5l-2-5H7l-2 5v5z"/><circle cx="8" cy="17" r="1.5"/><circle cx="16" cy="17" r="1.5"/><path d="M5 12h14"/></svg>
-              Drive
+  <!-- ================================================================ Directions: from / to -->
+  <header class="dirbar" id="dirbar" hidden>
+    <div class="dirbar__row">
+      <a href="#/" class="icon-btn" aria-label="Close directions">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      </a>
+      <ol class="waypoints">
+        <li class="waypoint">
+          <span class="waypoint__dot waypoint__dot--a" aria-hidden="true"></span>
+          <div class="search search--with-action">
+            <input class="search__input" id="search-origin" type="text" role="combobox" aria-autocomplete="list"
+                   aria-expanded="false" aria-controls="search-origin-list" aria-label="Start"
+                   placeholder="Choose start, or click the map" autocomplete="off" spellcheck="false">
+            <button type="button" class="search__action" id="use-location" title="Use my location" aria-label="Use my location">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3"/></svg>
             </button>
-            <button type="button" role="radio" aria-checked="false" data-value="walk" id="walk-mode-btn">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4" r="2"/><path d="m9 21 2-6 3 3v3M7 12l3-4h4l2 4M10 8l-1 5 2 2"/></svg>
-              Walk in shade
-            </button>
+            <ul class="search__list" id="search-origin-list" role="listbox" aria-label="Start suggestions" hidden></ul>
           </div>
-
-          <div class="field drive-only">
-            <span class="field__label" id="metric-label">Optimize for</span>
-            <div class="segmented" role="radiogroup" aria-labelledby="metric-label" data-setting="metric">
-              <button type="button" role="radio" aria-checked="true" data-value="time">Fastest</button>
-              <button type="button" role="radio" aria-checked="false" data-value="distance">Shortest</button>
-            </div>
+        </li>
+        <li class="waypoint">
+          <span class="waypoint__dot waypoint__dot--b" aria-hidden="true"></span>
+          <div class="search">
+            <input class="search__input" id="search-destination" type="text" role="combobox" aria-autocomplete="list"
+                   aria-expanded="false" aria-controls="search-destination-list" aria-label="Destination"
+                   placeholder="Choose destination" autocomplete="off" spellcheck="false">
+            <ul class="search__list" id="search-destination-list" role="listbox" aria-label="Destination suggestions" hidden></ul>
           </div>
-
-          <div class="field field--stack walk-only">
-            <span class="field__label" id="shade-label">Shade preference</span>
-            <div class="segmented segmented--full" role="radiogroup" aria-labelledby="shade-label" data-setting="shade">
-              <button type="button" role="radio" aria-checked="false" data-value="shortest">Shortest</button>
-              <button type="button" role="radio" aria-checked="true" data-value="balanced">Balanced</button>
-              <button type="button" role="radio" aria-checked="false" data-value="max">Most shade</button>
-            </div>
-          </div>
-
-          <label class="switch drive-only">
-            <input type="checkbox" id="glare-toggle">
-            <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
-            <span>Avoid driving into the sun</span>
-          </label>
-          <label class="switch drive-only">
-            <input type="checkbox" id="visor-toggle">
-            <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
-            <span>My sun visor doesn't shade my eyes</span>
-          </label>
-
-          <div class="field field--stack">
-            <div class="time-head">
-              <label class="field__label" for="walk-time">Leaving at</label>
-              <button type="button" class="chip" id="time-now">Now</button>
-            </div>
-            <div class="time-row">
-              <input type="date" id="walk-date" class="input" aria-label="Date">
-              <output class="time-value" id="walk-time-label" for="walk-time">–</output>
-            </div>
-            <input type="range" id="walk-time" class="range" min="0" max="1425" step="15" value="720">
-            <div class="sun-readout" id="sun-readout" aria-live="polite">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-              <span id="sun-text">–</span>
-            </div>
-            <div class="weather-readout" id="weather-readout" aria-live="polite" hidden>
-              <div class="weather-readout__row">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H8a5 5 0 1 1 1.6-9.7A6 6 0 0 1 21 12.5 3.5 3.5 0 0 1 17.5 19z"/></svg>
-                <span id="weather-text">Loading live weather…</span>
-                <span class="weather-badge" id="weather-badge"></span>
-              </div>
-              <p class="weather-readout__advice" id="weather-advice"></p>
-            </div>
-          </div>
-          <div class="field">
-            <span class="field__label" id="algo-label">Algorithm</span>
-            <div class="segmented" role="radiogroup" aria-labelledby="algo-label" data-setting="algorithm">
-              <button type="button" role="radio" aria-checked="true" data-value="dijkstra">Dijkstra</button>
-              <button type="button" role="radio" aria-checked="false" data-value="astar">A*</button>
-            </div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="explore-toggle" checked>
-            <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
-            <span>Animate search frontier</span>
-          </label>
-          <label class="switch walk-only">
-            <input type="checkbox" id="stairs-toggle">
-            <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
-            <span>Step-free (avoid stairs)</span>
-          </label>
-          <label class="switch walk-only" id="water-switch">
-            <input type="checkbox" id="water-toggle">
-            <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
-            <span>Stop for water on the way</span>
-          </label>
-          <label class="switch walk-only">
-            <input type="checkbox" id="shadows-toggle" checked>
-            <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
-            <span>Show building shadows</span>
-          </label>
-        </section>
-
-        <!-- Safety -->
-        <section class="card" aria-labelledby="safety-heading">
-          <h2 id="safety-heading" class="card__title">Safety</h2>
-          <label class="switch">
-            <input type="checkbox" id="safety-listen">
-            <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
-            <span>Listen for my danger phrase</span>
-          </label>
-          <div class="safety-fields">
-            <label class="field__label" for="safety-phrase">Danger phrase</label>
-            <input class="input" id="safety-phrase" maxlength="60" autocomplete="off" placeholder="Something you'd never say by accident">
-            <label class="field__label" for="safety-contact-name">Emergency contact</label>
-            <input class="input" id="safety-contact-name" maxlength="60" autocomplete="off" placeholder="Name">
-            <input class="input" id="safety-contact-phone" type="tel" maxlength="24" autocomplete="off" placeholder="Phone number">
-            <label class="switch">
-              <input type="checkbox" id="safety-911">
-              <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
-              <span>Call 911 (your contact is still texted your location)</span>
-            </label>
-          </div>
-          <p class="hint" id="safety-status">Saying the phrase, or pressing SOS on the map, starts a 10-second countdown you can cancel. Then Umbra opens a text to your contact with your location and a button to call. Settings stay on this device.</p>
-        </section>
-
-        <!-- Results -->
-        <section class="card results" id="results" aria-live="polite" hidden>
-          <div class="results__headline">
-            <div>
-              <div class="results__primary" id="res-duration">–</div>
-              <div class="results__secondary"><span id="res-distance">–</span> · <span id="res-metric">fastest route</span></div>
-            </div>
-            <span class="badge" id="res-algorithm">Dijkstra</span>
-          </div>
-
-          <dl class="stats">
-            <div class="stat"><dt>Nodes settled</dt><dd id="res-settled">–</dd></div>
-            <div class="stat"><dt>Search time</dt><dd id="res-compute">–</dd></div>
-            <div class="stat"><dt>Road segments</dt><dd id="res-segments">–</dd></div>
-          </dl>
-
-          <div class="shade-compare walk-only" aria-label="Shade comparison">
-            <div class="compare__title">Time in the shade</div>
-            <div class="shade-row">
-              <span class="shade-row__name">This route</span>
-              <span class="shade-bar"><span class="shade-bar__fill" id="shade-preferred-bar"></span></span>
-              <span class="shade-row__value" id="shade-preferred">–</span>
-            </div>
-            <div class="shade-row">
-              <span class="shade-row__name">Shortest</span>
-              <span class="shade-bar"><span class="shade-bar__fill shade-bar__fill--muted" id="shade-shortest-bar"></span></span>
-              <span class="shade-row__value" id="shade-shortest">–</span>
-            </div>
-            <p class="compare__note" id="shade-note"></p>
-          </div>
-
-          <p class="conditions drive-only" id="drive-conditions" hidden></p>
-          <p class="conditions walk-only" id="walk-conditions" hidden></p>
-
-          <div class="result-actions">
-            <button type="button" class="btn btn--primary" id="nav-start">Start navigation</button>
-            <button type="button" class="btn walk-only" id="departures-btn">Best time to leave</button>
-            <button type="button" class="btn" id="save-place" hidden>Save place</button>
-          </div>
-
-          <div class="departures walk-only" id="departures" hidden>
-            <div class="compare__title">Same walk, other departure times</div>
-            <ol class="departures__list" id="departures-list"></ol>
-            <p class="compare__note" id="departures-note"></p>
-          </div>
-
-          <div class="compare drive-only" aria-label="Algorithm comparison">
-            <div class="compare__title">Nodes explored to find this route</div>
-            <div class="compare__row">
-              <span class="compare__name">Dijkstra</span>
-              <span class="compare__bar"><span class="compare__fill compare__fill--dijkstra" id="cmp-dijkstra-bar"></span></span>
-              <span class="compare__value" id="cmp-dijkstra">–</span>
-            </div>
-            <div class="compare__row">
-              <span class="compare__name">A*</span>
-              <span class="compare__bar"><span class="compare__fill compare__fill--astar" id="cmp-astar-bar"></span></span>
-              <span class="compare__value" id="cmp-astar">–</span>
-            </div>
-            <p class="compare__note" id="cmp-note"></p>
-          </div>
-        </section>
-
-        <section class="card" id="directions-card" aria-labelledby="directions-heading" hidden>
-          <h2 id="directions-heading" class="card__title">Directions</h2>
-          <ol class="directions" id="directions"></ol>
-        </section>
-
-        <section class="card card--muted" id="about-card">
-          <h2 class="card__title">How it works</h2>
-          <p>The map is the real road network from OpenStreetMap: <strong id="graph-size">–</strong>.
-             One-way streets and speed limits come straight from the map data.</p>
-          <p>A C++20 engine stores it as a compressed sparse row graph and runs
-             <strong>Dijkstra's algorithm</strong> with a hand-written indexed binary heap
-             (O((V + E) log V)), or <strong>A*</strong> with a straight-line heuristic.</p>
-          <p>Search uses an in-house <strong>inverted index</strong> with prefix matching and typo
-             tolerance over <strong id="search-size">–</strong> places, streets and intersections.</p>
-          <p class="walk-only">Shade comes from the <strong>sun's position</strong> (NOAA solar algorithm) and
-             <strong id="shade-size">–</strong>: a sidewalk is shaded when the ray toward the sun hits a
-             building or tree crown first. <span id="weather-about">Live weather (Open-Meteo) weakens the sun penalty under clouds.</span></p>
-        </section>
-      </div>
-
-      <footer class="sidebar__footer">
-        <span>Engine: C++20 · cpp-httplib</span>
-        <span class="sidebar__links">
-          <a href="https://open-meteo.com/" target="_blank" rel="noopener" id="weather-credit" hidden>Weather: Open-Meteo</a>
-          <a href="/api/info" target="_blank" rel="noopener">API</a>
-        </span>
-      </footer>
-    </aside>
-
-    <!-- ================================================================ Map -->
-    <main class="map-panel">
-      <div id="map" role="application" aria-label="Map. Click to set start and destination."></div>
-      <div class="map-status" id="map-status" role="status" hidden>
-        <span class="spinner" aria-hidden="true"></span><span id="map-status-text">Finding route…</span>
-      </div>
-      <div class="toast" id="toast" role="alert" hidden></div>
-      <div class="nav-banner" id="nav-banner" role="status" hidden>
-        <div class="nav-banner__text">
-          <span class="nav-banner__distance" id="nav-distance">–</span>
-          <span id="nav-instruction">–</span>
-        </div>
-        <button type="button" class="chip" id="nav-voice" aria-pressed="true">Voice on</button>
-        <button type="button" class="chip" id="nav-stop">End</button>
-      </div>
-
-      <button type="button" class="sos-btn" id="sos-btn" aria-label="SOS: start the emergency countdown">SOS</button>
-
-      <button type="button" class="assistant-btn" id="assistant-btn" aria-controls="assistant" aria-expanded="false" hidden>
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/></svg>
-        Ask Umbra
+        </li>
+      </ol>
+      <button type="button" class="icon-btn" id="swap-btn" aria-label="Swap start and destination">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M7 4 3 8M7 4l4 4M17 20V4m0 16-4-4m4 4 4-4"/></svg>
       </button>
-      <section class="assistant" id="assistant" aria-label="Trip assistant" hidden>
-        <header class="assistant__head">
-          <strong>Ask Umbra</strong>
-          <span class="assistant__by">Grok · plans with Umbra's own engine</span>
-          <button type="button" class="icon-btn" id="assistant-close" aria-label="Close assistant">×</button>
-        </header>
+    </div>
+    <div class="dirbar__row dirbar__row--modes">
+      <div class="segmented mode-switch" role="radiogroup" aria-label="Travel mode" data-setting="mode">
+        <button type="button" role="radio" aria-checked="true" data-value="drive">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14v-5l-2-5H7l-2 5v5z"/><circle cx="8" cy="17" r="1.5"/><circle cx="16" cy="17" r="1.5"/><path d="M5 12h14"/></svg>
+          Drive
+        </button>
+        <button type="button" role="radio" aria-checked="false" data-value="walk" id="walk-mode-btn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4" r="2"/><path d="m9 21 2-6 3 3v3M7 12l3-4h4l2 4M10 8l-1 5 2 2"/></svg>
+          Walk
+        </button>
+      </div>
+      <a href="#/options" class="chip chip--link" id="time-chip">Leave now</a>
+      <a href="#/options" class="icon-btn" aria-label="Route options">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- ================================================================ Navigation banner -->
+  <div class="nav-banner" id="nav-banner" role="status" hidden>
+    <span class="nav-banner__distance" id="nav-distance">–</span>
+    <span class="nav-banner__instruction" id="nav-instruction">–</span>
+  </div>
+
+  <!-- ================================================================ Map buttons -->
+  <div class="fabs">
+    <button type="button" class="fab" id="locate-btn" aria-label="Show my location">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3"/></svg>
+    </button>
+    <button type="button" class="fab fab--sos" id="sos-btn" aria-label="SOS: start the emergency countdown">SOS</button>
+  </div>
+  <a href="#/assistant" class="fab fab--ai" id="assistant-btn" aria-label="Ask Umbra: help and trip planning">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
+  </a>
+
+  <div class="map-status" id="map-status" role="status" hidden>
+    <span class="spinner" aria-hidden="true"></span><span id="map-status-text">Finding route…</span>
+  </div>
+  <div class="toast" id="toast" role="alert" hidden></div>
+  <div class="map-note" id="map-note" hidden></div>
+
+  <!-- ================================================================ Sheet: bottom sheet on phones, side panel on desktop -->
+  <section class="sheet" id="sheet" hidden>
+    <button type="button" class="sheet__handle" id="sheet-handle" aria-label="Expand or collapse the panel"></button>
+    <div class="sheet__body" id="sheet-body">
+
+      <!-- Place -->
+      <section class="page" data-page="place" aria-labelledby="place-name" hidden>
+        <h2 class="page__title" id="place-name">–</h2>
+        <p class="page__subtitle" id="place-subtitle"></p>
+        <div class="actions">
+          <button type="button" class="btn btn--primary" id="place-directions">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 22 12 12 22 2 12z"/><path d="M9 13v-2h5V9l3 3-3 3v-2"/></svg>
+            Directions
+          </button>
+          <button type="button" class="btn" id="place-start">Start here</button>
+          <button type="button" class="btn" id="place-save" hidden>Save</button>
+        </div>
+      </section>
+
+      <!-- Directions: route choices -->
+      <section class="page" data-page="directions" aria-label="Routes" hidden>
+        <div class="weather-line" id="weather-readout" hidden>
+          <span id="weather-text">Loading weather…</span>
+          <span class="weather-badge" id="weather-badge"></span>
+          <p class="weather-line__advice" id="weather-advice"></p>
+        </div>
+        <ol class="routes" id="route-list" aria-label="Route choices"></ol>
+        <p class="note" id="route-note" hidden></p>
+        <div class="legend walk-only" aria-hidden="true">
+          <span><i class="legend__swatch legend__swatch--shade"></i>In shade</span>
+          <span><i class="legend__swatch legend__swatch--sun"></i>In sun</span>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn btn--primary btn--wide" id="nav-start">Start</button>
+          <a href="#/directions/steps" class="btn">Steps</a>
+          <a href="#/departures" class="btn walk-only">Best time</a>
+          <button type="button" class="btn" id="save-place" hidden>Save</button>
+        </div>
+        <dl class="stats dev-only" aria-label="Engine statistics">
+          <div class="stat"><dt>Nodes settled</dt><dd id="res-settled">–</dd></div>
+          <div class="stat"><dt>Search time</dt><dd id="res-compute">–</dd></div>
+          <div class="stat"><dt>Algorithm</dt><dd id="res-algorithm">–</dd></div>
+        </dl>
+        <p class="note dev-only" id="cmp-note"></p>
+      </section>
+
+      <!-- Steps -->
+      <section class="page" data-page="steps" aria-labelledby="steps-title" hidden>
+        <div class="page__head">
+          <a href="#/directions" class="icon-btn" aria-label="Back to routes"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+          <h2 class="page__title" id="steps-title">Steps</h2>
+        </div>
+        <ol class="directions" id="directions"></ol>
+      </section>
+
+      <!-- Route options -->
+      <section class="page" data-page="options" aria-labelledby="options-title" hidden>
+        <div class="page__head">
+          <a href="#/directions" class="icon-btn" aria-label="Back to routes"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+          <h2 class="page__title" id="options-title">Route options</h2>
+        </div>
+
+        <div class="group">
+          <div class="time-head">
+            <label class="group__label" for="walk-time">Leaving at</label>
+            <button type="button" class="chip" id="time-now">Now</button>
+          </div>
+          <div class="time-row">
+            <input type="date" id="walk-date" class="input" aria-label="Date">
+            <output class="time-value" id="walk-time-label" for="walk-time">–</output>
+          </div>
+          <input type="range" id="walk-time" class="range" min="0" max="1425" step="15" value="720">
+          <div class="sun-readout" id="sun-readout" aria-live="polite">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            <span id="sun-text">–</span>
+          </div>
+        </div>
+
+        <div class="group drive-only">
+          <span class="group__label" id="metric-label">Prefer</span>
+          <div class="segmented segmented--full" role="radiogroup" aria-labelledby="metric-label" data-setting="metric">
+            <button type="button" role="radio" aria-checked="true" data-value="time">Fastest</button>
+            <button type="button" role="radio" aria-checked="false" data-value="distance">Shortest</button>
+          </div>
+          <label class="switch"><input type="checkbox" id="glare-toggle"><span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span><span>Avoid driving into the sun</span></label>
+          <label class="switch"><input type="checkbox" id="visor-toggle"><span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span><span>My sun visor doesn't shade my eyes</span></label>
+        </div>
+
+        <div class="group walk-only">
+          <span class="group__label" id="shade-label">Shade</span>
+          <div class="segmented segmented--full" role="radiogroup" aria-labelledby="shade-label" data-setting="shade">
+            <button type="button" role="radio" aria-checked="false" data-value="shortest">Shortest</button>
+            <button type="button" role="radio" aria-checked="true" data-value="balanced">Balanced</button>
+            <button type="button" role="radio" aria-checked="false" data-value="max">Most shade</button>
+          </div>
+          <label class="switch"><input type="checkbox" id="stairs-toggle"><span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span><span>Step-free (avoid stairs)</span></label>
+          <label class="switch" id="water-switch"><input type="checkbox" id="water-toggle"><span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span><span>Stop for water on the way</span></label>
+          <label class="switch"><input type="checkbox" id="shadows-toggle" checked><span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span><span>Show building shadows</span></label>
+        </div>
+
+        <div class="group dev-only">
+          <span class="group__label" id="algo-label">Developer</span>
+          <div class="segmented segmented--full" role="radiogroup" aria-labelledby="algo-label" data-setting="algorithm">
+            <button type="button" role="radio" aria-checked="true" data-value="dijkstra">Dijkstra</button>
+            <button type="button" role="radio" aria-checked="false" data-value="astar">A*</button>
+          </div>
+          <label class="switch"><input type="checkbox" id="explore-toggle" checked><span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span><span>Animate the search</span></label>
+        </div>
+      </section>
+
+      <!-- Best time to leave -->
+      <section class="page" data-page="departures" aria-labelledby="departures-title" hidden>
+        <div class="page__head">
+          <a href="#/directions" class="icon-btn" aria-label="Back to routes"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+          <h2 class="page__title" id="departures-title">Best time to leave</h2>
+        </div>
+        <p class="note" id="departures-note">Loading…</p>
+        <ol class="departures__list" id="departures-list"></ol>
+      </section>
+
+      <!-- Navigation -->
+      <section class="page" data-page="navigate" aria-label="Navigation" hidden>
+        <div class="nav-bar">
+          <div class="nav-bar__text">
+            <div class="nav-bar__eta" id="nav-eta">–</div>
+            <div class="page__subtitle" id="nav-summary"></div>
+          </div>
+          <button type="button" class="chip" id="nav-voice" aria-pressed="true">Voice on</button>
+          <button type="button" class="btn btn--stop" id="nav-stop">Stop</button>
+        </div>
+      </section>
+
+      <!-- Profile & settings -->
+      <section class="page" data-page="settings" aria-labelledby="settings-title" hidden>
+        <div class="page__head">
+          <a href="#/" class="icon-btn" aria-label="Close settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></a>
+          <h2 class="page__title" id="settings-title">Profile &amp; settings</h2>
+        </div>
+
+        <a href="#/account" class="profile-card" id="profile-card" hidden>
+          <span class="profile-card__avatar" id="profile-initial" aria-hidden="true">?</span>
+          <span class="menu-item__text"><strong id="account-label">Sign in</strong><small id="account-sub">Save places and see your recent trips</small></span>
+          <svg class="menu-item__chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </a>
+
+        <h3 class="group__label">Safety</h3>
+        <a href="#/safety" class="menu-item">
+          <span class="menu-item__icon menu-item__icon--sos" aria-hidden="true">SOS</span>
+          <span class="menu-item__text"><strong>Emergency</strong><small id="safety-summary">Danger phrase and emergency contact</small></span>
+          <svg class="menu-item__chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </a>
+
+        <h3 class="group__label">Appearance</h3>
+        <div class="segmented segmented--full" role="radiogroup" aria-label="Theme" data-setting="theme">
+          <button type="button" role="radio" aria-checked="true" data-value="system">System</button>
+          <button type="button" role="radio" aria-checked="false" data-value="light">Light</button>
+          <button type="button" role="radio" aria-checked="false" data-value="dark">Dark</button>
+        </div>
+
+        <h3 class="group__label">More</h3>
+        <a href="#/assistant" class="menu-item">
+          <span class="menu-item__icon" aria-hidden="true">?</span>
+          <span class="menu-item__text"><strong>Help &amp; Ask Umbra</strong><small>Find a setting or plan a trip in plain English</small></span>
+          <svg class="menu-item__chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </a>
+        <label class="menu-item">
+          <span class="menu-item__icon" aria-hidden="true">&lt;/&gt;</span>
+          <span class="menu-item__text"><strong>Developer mode</strong><small>Algorithm choice, search animation, engine statistics</small></span>
+          <input type="checkbox" class="visually-hidden" id="dev-toggle">
+          <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+        </label>
+        <a href="#/about" class="menu-item">
+          <span class="menu-item__icon" aria-hidden="true">i</span>
+          <span class="menu-item__text"><strong>About</strong><small>Data sources and credits</small></span>
+          <svg class="menu-item__chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </a>
+
+        <div class="account-actions" id="account-actions" hidden>
+          <h3 class="group__label">Account</h3>
+          <a class="menu-item" href="/api/me/export" download>
+            <span class="menu-item__icon" aria-hidden="true">↓</span>
+            <span class="menu-item__text"><strong>Download my data</strong><small>Everything Umbra stores about you</small></span>
+          </a>
+          <button type="button" class="menu-item" id="logout-btn">
+            <span class="menu-item__icon" aria-hidden="true">⇥</span>
+            <span class="menu-item__text"><strong>Sign out</strong></span>
+          </button>
+          <button type="button" class="menu-item menu-item--danger" id="delete-account">
+            <span class="menu-item__icon menu-item__icon--sos" aria-hidden="true">✕</span>
+            <span class="menu-item__text"><strong>Delete account</strong><small>Removes your account, places and trips</small></span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Account -->
+      <section class="page" data-page="account" aria-labelledby="account-title" hidden>
+        <div class="page__head">
+          <a href="#/settings" class="icon-btn" aria-label="Back to settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+          <h2 class="page__title" id="account-title">Your places</h2>
+        </div>
+        <div id="account-signed-out">
+          <div class="segmented segmented--full">
+            <button type="button" data-auth="login" aria-pressed="true">Sign in</button>
+            <button type="button" data-auth="register" aria-pressed="false">Create account</button>
+          </div>
+          <form class="auth-form" id="auth-form">
+            <label class="group__label" for="auth-name" data-register-only hidden>Name</label>
+            <input class="input" id="auth-name" maxlength="80" autocomplete="name" data-register-only hidden>
+            <label class="group__label" for="auth-email">Email</label>
+            <input class="input" id="auth-email" type="email" maxlength="254" autocomplete="email" required>
+            <label class="group__label" for="auth-password">Password <span class="hint">(10+ characters)</span></label>
+            <input class="input" id="auth-password" type="password" minlength="10" maxlength="128" autocomplete="current-password" required>
+            <p class="form-error" id="auth-error" role="alert" hidden></p>
+            <button class="btn btn--primary" id="auth-submit" type="submit">Sign in</button>
+          </form>
+          <p class="hint">Umbra stores your email, a salted Argon2id password hash, saved places and your last 50 trips, nothing else. You can download or delete it all at any time.</p>
+        </div>
+        <div id="account-signed-in" hidden>
+          <p>Signed in as <strong id="account-name"></strong> · <span id="account-email"></span></p>
+          <h3 class="group__label">Saved places</h3>
+          <ul class="list" id="places-list"></ul>
+          <h3 class="group__label">Recent trips</h3>
+          <ul class="list" id="trips-list"></ul>
+          <div class="actions">
+            <button type="button" class="btn" id="clear-trips">Clear trip history</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Safety -->
+      <section class="page" data-page="safety" aria-labelledby="safety-title" hidden>
+        <div class="page__head">
+          <a href="#/settings" class="icon-btn" aria-label="Back to settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+          <h2 class="page__title" id="safety-title">Safety</h2>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="safety-listen">
+          <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+          <span>Listen for my danger phrase</span>
+        </label>
+        <div class="group">
+          <label class="group__label" for="safety-phrase">Danger phrase</label>
+          <input class="input" id="safety-phrase" maxlength="60" autocomplete="off" placeholder="Something you'd never say by accident">
+          <label class="group__label" for="safety-contact-name">Emergency contact</label>
+          <input class="input" id="safety-contact-name" maxlength="60" autocomplete="off" placeholder="Name">
+          <input class="input" id="safety-contact-phone" type="tel" maxlength="24" autocomplete="off" placeholder="Phone number" aria-label="Emergency contact phone number">
+          <label class="switch">
+            <input type="checkbox" id="safety-911">
+            <span class="switch__track" aria-hidden="true"><span class="switch__thumb"></span></span>
+            <span>Call 911 (your contact is still texted your location)</span>
+          </label>
+        </div>
+        <p class="hint" id="safety-status">Saying the phrase, or pressing SOS on the map, starts a 10-second countdown you can cancel. Then Umbra opens a text to your contact with your location and a button to call. Settings stay on this device. This does not replace calling 911 yourself.</p>
+      </section>
+
+      <!-- Assistant -->
+      <section class="page page--chat" data-page="assistant" aria-labelledby="assistant-title" hidden>
+        <div class="page__head">
+          <a href="#/" class="icon-btn" aria-label="Close assistant"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></a>
+          <h2 class="page__title" id="assistant-title">Help &amp; Ask Umbra</h2>
+        </div>
+        <nav class="quick-links" aria-label="Quick links">
+          <a class="chip" href="#/safety">Emergency settings</a>
+          <a class="chip" href="#/settings">Theme</a>
+          <a class="chip" href="#/account">Saved places</a>
+          <a class="chip" href="#/options" id="help-options">Route options</a>
+        </nav>
         <ol class="assistant__log" id="assistant-log" aria-live="polite">
-          <li class="assistant__msg assistant__msg--bot">Try “Shadiest walk from Coor Hall to the MU after 4pm?” or “When is it coolest to walk to Hayden Library today?”</li>
+          <li class="assistant__msg assistant__msg--bot" id="assistant-intro">Ask me where to find a setting, or to plan a trip: “Shadiest walk from Coor Hall to the MU after 4pm?”</li>
         </ol>
-        <form class="assistant__form" id="assistant-form">
+        <form class="assistant__form" id="assistant-form" hidden>
           <input class="input" id="assistant-input" maxlength="500" autocomplete="off" placeholder="Ask about a trip…" aria-label="Your question">
           <button class="btn btn--primary" id="assistant-send" type="submit">Send</button>
         </form>
       </section>
-      <div class="map-note" id="map-note" hidden></div>
-      <div class="legend" aria-label="Legend">
-        <span class="legend__item drive-only"><span class="legend__swatch legend__swatch--route"></span>Route</span>
-        <span class="legend__item walk-only"><span class="legend__swatch legend__swatch--shade"></span>Shade</span>
-        <span class="legend__item walk-only"><span class="legend__swatch legend__swatch--sun"></span>Sun</span>
-        <span class="legend__item walk-only"><span class="legend__swatch legend__swatch--shortest"></span>Shortest</span>
-        <span class="legend__item"><span class="legend__swatch legend__swatch--explored"></span>Explored</span>
-        <span class="legend__item drive-only"><span class="legend__swatch legend__swatch--bounds"></span>Coverage</span>
-      </div>
-    </main>
-  </div>
 
+      <!-- About -->
+      <section class="page" data-page="about" aria-labelledby="about-title" hidden>
+        <div class="page__head">
+          <a href="#/settings" class="icon-btn" aria-label="Back to settings"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+          <h2 class="page__title" id="about-title">About Umbra</h2>
+        </div>
+        <p>Fastest drives and shadiest walks in <span id="region-name">Tempe, Arizona</span>.</p>
+        <ul class="credits">
+          <li>Map data and tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> (ODbL)</li>
+          <li id="weather-credit" hidden>Weather by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0)</li>
+          <li id="traffic-credit" hidden>Traffic © HERE</li>
+        </ul>
+      </section>
+    </div>
+  </section>
+
+  <!-- ================================================================ Emergency -->
   <div class="emergency" id="emergency" role="alertdialog" aria-modal="true" aria-labelledby="emergency-title" aria-describedby="emergency-text" hidden>
     <div class="emergency__box">
       <h2 class="emergency__title" id="emergency-title">Emergency</h2>
@@ -363,43 +431,6 @@
       </div>
     </div>
   </div>
-
-  <dialog class="dialog" id="account-dialog" aria-labelledby="account-title">
-    <form method="dialog" class="dialog__close"><button class="icon-btn" aria-label="Close">×</button></form>
-    <h2 class="dialog__title" id="account-title">Your account</h2>
-
-    <section id="account-signed-out">
-      <div class="segmented segmented--full">
-        <button type="button" data-auth="login" aria-pressed="true">Sign in</button>
-        <button type="button" data-auth="register" aria-pressed="false">Create account</button>
-      </div>
-      <form class="auth-form" id="auth-form">
-        <label class="field__label" for="auth-name" data-register-only hidden>Name</label>
-        <input class="input" id="auth-name" maxlength="80" autocomplete="name" data-register-only hidden>
-        <label class="field__label" for="auth-email">Email</label>
-        <input class="input" id="auth-email" type="email" maxlength="254" autocomplete="email" required>
-        <label class="field__label" for="auth-password">Password <span class="hint">(10+ characters)</span></label>
-        <input class="input" id="auth-password" type="password" minlength="10" maxlength="128" autocomplete="current-password" required>
-        <p class="form-error" id="auth-error" role="alert" hidden></p>
-        <button class="btn btn--primary" id="auth-submit" type="submit">Sign in</button>
-      </form>
-      <p class="hint">Umbra stores your email, a salted Argon2id password hash, saved places and your last 50 trips, nothing else. You can download or delete it all at any time.</p>
-    </section>
-
-    <section id="account-signed-in" hidden>
-      <p>Signed in as <strong id="account-name"></strong> · <span id="account-email"></span></p>
-      <h3 class="card__title">Saved places</h3>
-      <ul class="list" id="places-list"></ul>
-      <h3 class="card__title">Recent trips</h3>
-      <ul class="list" id="trips-list"></ul>
-      <div class="dialog__actions">
-        <a class="btn" href="/api/me/export" download>Download my data</a>
-        <button type="button" class="btn" id="clear-trips">Clear history</button>
-        <button type="button" class="btn" id="logout-btn">Sign out</button>
-        <button type="button" class="btn btn--danger" id="delete-account">Delete account</button>
-      </div>
-    </section>
-  </dialog>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>

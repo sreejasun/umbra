@@ -12,6 +12,7 @@ export class LocationTracker {
     this.onError = onError;
     this.watchId = null;
     this.last = null; // {lat, lng, accuracy}
+    this.lastAt = 0; // Date.now() of the last fix
   }
 
   get supported() {
@@ -35,6 +36,7 @@ export class LocationTracker {
     this.watchId = navigator.geolocation.watchPosition(
       (pos) => {
         this.last = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+        this.lastAt = Date.now();
         this.onUpdate(this.last);
       },
       (err) => {
@@ -48,6 +50,28 @@ export class LocationTracker {
   stop() {
     if (this.watchId !== null) navigator.geolocation.clearWatch(this.watchId);
     this.watchId = null;
+  }
+
+  /**
+   * A new high-accuracy fix taken now (never a cached one), for emergencies.
+   * Falls back to the last fix only if it is under `maxAgeMs` old.
+   */
+  fresh(maxAgeMs = 60_000, timeoutMs = 8000) {
+    return new Promise((resolve, reject) => {
+      const fallback = (error) => {
+        if (this.last && Date.now() - this.lastAt < maxAgeMs) resolve(this.last);
+        else reject(error);
+      };
+      if (!this.supported) {
+        fallback(new Error("Location is not supported"));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }),
+        fallback,
+        { enableHighAccuracy: true, maximumAge: 0, timeout: timeoutMs },
+      );
+    });
   }
 
   /** Resolve with the next (or latest) fix. */

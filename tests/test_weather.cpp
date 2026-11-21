@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <fstream>
+#include <future>
+#include <thread>
 #include <sstream>
 #include <stdexcept>
 
@@ -202,6 +205,37 @@ TEST(WeatherServiceTest, RecoversAfterTheBackoff) {
   EXPECT_FALSE(service.forecast());  // still backing off
   up.now += std::chrono::seconds(61);
   EXPECT_TRUE(service.forecast());
+}
+
+TEST(CachedResourceTest, BackgroundModeNeverWaitsForTheUpstream) {
+  std::promise<void> release;
+  std::shared_future<void> released = release.get_future().share();
+  std::atomic<int> calls = 0;
+  CachePolicy policy;
+  policy.background = true;
+  CachedResource<int> cache(
+      [&] {
+        ++calls;
+        released.wait();  // a slow upstream
+        return 42;
+      },
+      policy);
+
+  const auto started = std::chrono::steady_clock::now();
+  EXPECT_EQ(cache.get(), nullptr) << "nothing yet, and no waiting";
+  for (int i = 0; i < 200 && calls.load() == 0; ++i) std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  EXPECT_EQ(cache.get(), nullptr) << "still fetching";
+  EXPECT_LT(std::chrono::steady_clock::now() - started, std::chrono::milliseconds(1500));
+  EXPECT_EQ(calls.load(), 1) << "one fetch at a time";
+
+  release.set_value();
+  std::shared_ptr<const int> value;
+  for (int i = 0; i < 200 && !value; ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    value = cache.get();
+  }
+  ASSERT_TRUE(value);
+  EXPECT_EQ(*value, 42);
 }
 
 TEST(WeatherServiceTest, SendsOnlyTheMapCentre) {

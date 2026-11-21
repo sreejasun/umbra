@@ -6,7 +6,7 @@
 //   - /api/* and map tiles: never cached. Routes and weather must be live, and the
 //     OpenStreetMap tile policy discourages bulk offline caching.
 
-const VERSION = "umbra-v3";
+const VERSION = "umbra-v5";
 const SHELL = [
   "./",
   "index.html",
@@ -22,6 +22,7 @@ const SHELL = [
   "js/navigation.js",
   "js/safety.js",
   "js/search-box.js",
+  "js/sheet.js",
   "js/time.js",
   "favicon.svg",
   "manifest.webmanifest",

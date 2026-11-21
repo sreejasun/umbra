@@ -95,6 +95,17 @@ This is how routes to buildings work: the UI sends a building's entrances as `to
 `RouteService::snap_all()` snaps each one (skipping any too far from the network), and the route ends
 at whichever door is quickest to reach. A building chosen as the start works the same way.
 
+### Alternative routes
+
+`find_alternative_paths()` returns up to three meaningfully different routes with the *penalty
+method*: search, multiply the cost of every edge on the route found by 1.4, and search again. A
+candidate is kept if its true cost (without penalties) is within 1.35× the best and it shares at most
+75 % of its length with the routes already kept; at most six extra searches run. Penalties only raise
+costs, so A\* stays admissible. A randomized test checks the first route is optimal and the others
+respect both limits. The drive API labels each alternative by what is special about it (shorter,
+less sun glare, fewer turns) or by its longest road the main route does not use ("via South Smith
+Road"). Walks get their choices differently: one per shade preference, if the paths differ.
+
 ### Indexed min-heap
 
 ```
@@ -278,11 +289,16 @@ the UI marks the best option (most comfortable, then shadiest, then earliest).
   precipitation, WMO weather code, wind, UV index and direct normal irradiance (DNI), from yesterday to 7
   days ahead, with Unix timestamps. `parse_open_meteo()` validates it; hours without a temperature are
   treated as missing, not as 0 °C.
-* **Cache.** `CachedResource<T>`, shared with traffic: under a mutex, refetch only when the value is
-  older than the refresh interval (10 min for weather); after a failure, wait before trying again (60 s,
-  no retry storm against a struggling upstream) and keep serving the previous value until it is too old
-  (3 h). Requests share a `shared_ptr` to an immutable value. The fetch function and the clock are
-  injected, so the tests use a fake upstream and a fake clock.
+* **Cache.** `CachedResource<T>`, shared with traffic: refetch only when the value is older than the
+  refresh interval (10 min for weather); after a failure, wait before trying again (60 s, no retry
+  storm against a struggling upstream) and keep serving the previous value until it is too old (3 h).
+  In the server the cache runs in **background mode**: `get()` never waits; when a refresh is due it
+  starts one fetch on a worker thread and returns the current value (or none yet), so a slow or
+  unreachable provider cannot delay a route. Without it, the first request after start-up waited up
+  to the HTTP timeout while Open-Meteo was slow. The first fetch starts when the server starts.
+  Requests share a `shared_ptr` to an immutable value. The fetch function and the clock are injected,
+  so the tests use a fake upstream and a fake clock (and, for background mode, a fetch that blocks on
+  a promise).
 * **Lookup.** `WeatherForecast::at(t)` binary-searches the hourly samples and interpolates linearly.
   Radiation and precipitation are averages over the *preceding* hour, so they are interpolated as if
   stamped 30 minutes earlier. The weather code comes from the nearer hour. More than an hour outside the
@@ -375,6 +391,28 @@ can recover by searching first. The last planned route is passed to the UI and d
 is rendered with `textContent`. The API key stays on the server, questions are limited to 500
 characters, and each account may ask 20 questions an hour.
 
+## Web app
+
+`web/` is plain ES modules with no build step, laid out like a maps app:
+
+* **Screens** are hash routes (`#/`, `#/place`, `#/directions`, `#/directions/steps`, `#/options`,
+  `#/departures`, `#/navigate`, `#/settings`, `#/account`, `#/safety`, `#/assistant`, `#/about`). A
+  table in `app.js` gives each its header (search bar, From / To card or navigation banner), its sheet
+  page and height, a guard (e.g. Steps needs a route) and enter / leave hooks (Navigation starts and
+  stops the navigator). Back and forward work because every screen is a URL; the trip itself stays in
+  the query string, so a link to `#/directions` reproduces the route.
+* **The sheet** (`sheet.js`) is a bottom sheet on phones with three heights (peek, half, full), dragged
+  by its handle with pointer events; on desktop the same element is a floating left panel. It reports
+  how much of the map it covers, so routes are framed in the visible part and map controls move above it.
+* **Route choices** come from the API's `alternatives`; `map-view.js` draws the others in grey
+  (clickable) and the selected one on top, by shade and sun for walks.
+* **Settings** hold the account, emergency settings, the theme (System follows the device; Light and
+  Dark set `data-theme` on `<html>`, which the CSS tokens key off) and Developer mode, which reveals
+  the algorithm switch, the search animation and the engine statistics. Device preferences live in
+  `localStorage`.
+* **Help**: the Ask Umbra button opens quick links to common settings and, with an xAI key, the
+  assistant, whose instructions include a short guide to where everything is in the app.
+
 ## Navigation
 
 `web/js/navigation.js` follows the user's location fixes (ignoring fixes less accurate than 50 m). It
@@ -396,7 +434,10 @@ than 40 m from the route asks the server for a new route from the current positi
    server's `Permissions-Policy` allows the microphone for this origin only.
 3. **Countdown.** The phrase or the SOS button opens a full-screen alert dialog with a 10-second
    countdown, a large Cancel button (focused) and a vibration on Android.
-4. **Alert.** The current location fix is taken (8 s timeout). Umbra opens the Messages app with an
+4. **Alert.** The location must be where the user is *now*: `LocationTracker.fresh()` asks for a new
+   high-accuracy fix (`maximumAge: 0`) as soon as the countdown starts, so the 10 seconds double as
+   GPS time; only if that fails is the last fix used, and only if it is under a minute old. Then Umbra
+   opens the Messages app with an
    `sms:` link (`&body=` on iOS, `?body=` elsewhere) addressed to the contact, containing the time,
    accuracy, coordinates and an OpenStreetMap link, and shows a `tel:` Call button for the contact or
    911. The text goes first, so the location is shared whether or not the call is answered.
@@ -458,7 +499,9 @@ while waiting for the model (up to 60 s per call), which is why it is rate-limit
 | Accounts | Sign-up validation, case-insensitive email, identical errors for unknown email and wrong password, forged and logged-out tokens, ownership of places, trip pruning, cascade on delete |
 | Server | Token-bucket limiter with a fake clock, proxy-aware client IP, CSP contents, config flags; the assistant against a scripted fake model (tool round trip, unknown tools, max rounds, provider failure) |
 | Glare | Sunset drive takes the off-axis dog-leg only when avoiding glare; no detour at night; the low-visor threshold catches a 30° sun; the penalty never undercuts free-flow time |
-| Web (Node) | Navigation: distance to the next turn, re-route only after two off-route fixes, vague fixes ignored, arrival. Safety: phrase normalisation, phone validation, iOS/Android `sms:` formats, the location message. Departures: best-option ordering |
+| Web (Node) | Navigation: distance to the next turn, re-route only after two off-route fixes, vague fixes ignored, arrival. Emergency location: a fresh fix is used, a recent one is the fallback, a stale one is refused. Safety: phrase normalisation, phone validation, iOS/Android `sms:` formats, the location message. Departures: best-option ordering |
+| Live data | Background-mode cache: `get()` returns immediately while a slow fetch runs, one fetch at a time, the value appears when it completes |
+| Alternatives | Two-road graph returns both roads best first with true costs; the stretch limit drops a too-long road; on random graphs the first route is optimal and the others respect both limits |
 | Search | Tokenisation and abbreviations, prefix-while-typing, intersections in any word order, typo tolerance, ranking, limits |
 | Integration | `umbra_bench` on the real Tempe data in CI (fails if Dijkstra and A\* ever disagree) |
 | Memory safety | Debug preset with AddressSanitizer + UndefinedBehaviorSanitizer |

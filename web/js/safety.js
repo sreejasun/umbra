@@ -44,7 +44,7 @@ export function locationMessage(fix, now = new Date()) {
   const lng = fix.lng.toFixed(5);
   const time = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   return (
-    `EMERGENCY: I need help. My location at ${time} (±${Math.round(fix.accuracy ?? 0)} m): ` +
+    `EMERGENCY: I need help. My current location at ${time} (±${Math.round(fix.accuracy ?? 0)} m): ` +
     `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng} (${lat}, ${lng}). Sent from Umbra.`
   );
 }
@@ -52,7 +52,7 @@ export function locationMessage(fix, now = new Date()) {
 export class SafetyMonitor {
   /**
    * @param {object} deps
-   *   getFix()   promise of the current location fix {lat, lng, accuracy}
+   *   getFix()   promise of a location fix taken now {lat, lng, accuracy}
    *   toast(message)
    */
   constructor({ getFix, toast }) {
@@ -100,6 +100,7 @@ export class SafetyMonitor {
     $("safety-911").addEventListener("change", (e) => {
       this.settings.call911 = e.target.checked;
       this.save();
+      this.render();
     });
     $("safety-listen").checked = this.settings.listen;
     $("safety-listen").addEventListener("change", (e) => {
@@ -111,6 +112,7 @@ export class SafetyMonitor {
       this.save();
       if (this.settings.listen) this.startListening();
       else this.stopListening();
+      this.render();
     });
 
     $("sos-btn").addEventListener("click", () => this.trigger("SOS pressed"));
@@ -140,6 +142,9 @@ export class SafetyMonitor {
 
   render() {
     const who = cleanPhone(this.settings.contactPhone) ? this.settings.contactName || "your contact" : null;
+    $("safety-summary").textContent =
+      `${this.settings.listen ? "Listening for your phrase" : "Phrase off"} · ${who ? `Contact: ${who}` : "No contact yet"}` +
+      (this.settings.call911 ? " · 911" : "");
     if (this.settings.listen) {
       this.status(
         `Listening for “${this.settings.phrase}” while Umbra is open.` +
@@ -215,6 +220,8 @@ export class SafetyMonitor {
     $("emergency-count").textContent = String(left);
     $("emergency-cancel").focus();
     navigator.vibrate?.([300, 200, 300]);
+    // Start locating now: the countdown doubles as time for the GPS to get a fresh fix.
+    this.fix = this.getFix().catch(() => null);
 
     this.countdown = setInterval(() => {
       left -= 1;
@@ -243,14 +250,9 @@ export class SafetyMonitor {
   async fire() {
     $("emergency-cancel").hidden = true;
     $("emergency-count").hidden = true;
-    $("emergency-text").textContent = "Getting your location…";
+    $("emergency-text").textContent = "Getting your current location…";
 
-    let fix = null;
-    try {
-      fix = await this.getFix();
-    } catch {
-      /* no location: still call */
-    }
+    const fix = await this.fix; // null if no location: still offer the call
 
     const contactPhone = cleanPhone(this.settings.contactPhone);
     const contactName = this.settings.contactName || "your contact";
@@ -264,7 +266,8 @@ export class SafetyMonitor {
       sms.href = smsHref(contactPhone, locationMessage(fix));
       sms.textContent = `Text my location to ${contactName}`;
       sms.hidden = false;
-      $("emergency-where").textContent = `Your location: ${fix.lat.toFixed(5)}, ${fix.lng.toFixed(5)}`;
+      $("emergency-where").textContent =
+        `Sending your current location: ${fix.lat.toFixed(5)}, ${fix.lng.toFixed(5)} (±${Math.round(fix.accuracy ?? 0)} m)`;
     } else {
       sms.hidden = true;
       $("emergency-where").textContent = fix

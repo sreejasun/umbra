@@ -92,6 +92,30 @@ using EdgeCostFn = std::function<double(EdgeId, const Edge&)>;
                                                       std::span<const NodeId> targets, const EdgeCostFn& cost,
                                                       double min_cost_per_meter, const SearchOptions& options = {});
 
+/// Limits for find_alternative_paths().
+struct AlternativeOptions {
+  std::size_t max_routes = 3;    ///< including the best route
+  std::size_t max_attempts = 6;  ///< searches after the best one
+  double penalty = 1.4;          ///< cost multiplier on edges of routes already found
+  double max_stretch = 1.35;     ///< drop routes costing more than this x the best
+  double max_shared = 0.75;      ///< drop routes sharing more than this share of their length with a kept one
+};
+
+/**
+ * Up to `max_routes` meaningfully different routes, best first (penalty
+ * method): after each search the edges of the route found cost `penalty`
+ * times more, so the next search prefers other roads. A candidate is kept if
+ * its true cost (without penalties) is within `max_stretch` of the best and it
+ * shares at most `max_shared` of its length with the routes already kept.
+ * Penalties only raise costs, so the A* heuristic stays admissible.
+ * `result.cost` of each route is its true cost.
+ */
+[[nodiscard]] std::vector<SearchResult> find_alternative_paths(const RoadGraph& graph, std::span<const NodeId> sources,
+                                                               std::span<const NodeId> targets, const EdgeCostFn& cost,
+                                                               double min_cost_per_meter,
+                                                               const SearchOptions& options = {},
+                                                               const AlternativeOptions& limits = {});
+
 /// Single-source Dijkstra: cost from `source` to every node (infinity if unreachable).
 [[nodiscard]] std::vector<double> shortest_costs_from(const RoadGraph& graph, NodeId source,
                                                       Metric metric = Metric::kTime);

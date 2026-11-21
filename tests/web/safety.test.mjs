@@ -27,7 +27,7 @@ test("sms links use the separator each platform expects", () => {
 
 test("the message carries a map link and the coordinates", () => {
   const message = locationMessage({ lat: 33.417634, lng: -111.934651, accuracy: 12.4 }, new Date(2026, 10, 20, 15, 4));
-  assert.match(message, /^EMERGENCY: I need help\./);
+  assert.match(message, /^EMERGENCY: I need help\. My current location/);
   assert.match(message, /mlat=33\.41763&mlon=-111\.93465/);
   assert.match(message, /\(33\.41763, -111\.93465\)/);
   assert.match(message, /±12 m/);

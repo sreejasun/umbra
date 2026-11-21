@@ -205,6 +205,62 @@ TEST(ShortestPathBetween, RejectsEmptySets) {
   EXPECT_THROW((void)find_shortest_path_between(g, some, bad), std::out_of_range);
 }
 
+// ----------------------------------------------------------- alternatives
+
+EdgeCostFn by_length() {
+  return [](EdgeId, const Edge& e) { return e.length_m; };
+}
+
+TEST(AlternativePaths, FindsTheOtherRoadFirstBest) {
+  const RoadGraph g = freeway_vs_street();  // 0->1->3 (2,000 m) and 0->2->3 (1,200 m)
+  const std::vector<NodeId> from{0};
+  const std::vector<NodeId> to{3};
+  AlternativeOptions limits;
+  limits.max_stretch = 2.0;
+  const auto routes = find_alternative_paths(g, from, to, by_length(), 1.0, {}, limits);
+  ASSERT_EQ(routes.size(), 2U);
+  EXPECT_EQ(routes[0].nodes, (std::vector<NodeId>{0, 2, 3}));
+  EXPECT_EQ(routes[1].nodes, (std::vector<NodeId>{0, 1, 3}));
+  EXPECT_DOUBLE_EQ(routes[1].cost, 2000.0) << "true cost, without the penalty";
+}
+
+TEST(AlternativePaths, DropsRoutesThatAreTooLong) {
+  const RoadGraph g = freeway_vs_street();
+  const std::vector<NodeId> from{0};
+  const std::vector<NodeId> to{3};
+  const auto routes = find_alternative_paths(g, from, to, by_length(), 1.0);  // 2,000 > 1.35 x 1,200
+  ASSERT_EQ(routes.size(), 1U);
+  AlternativeOptions one;
+  one.max_routes = 1;
+  EXPECT_EQ(find_alternative_paths(g, from, to, by_length(), 1.0, {}, one).size(), 1U);
+}
+
+// On random graphs: the first route is optimal, others are distinct, within the
+// stretch limit and share at most the allowed length with earlier ones.
+TEST(AlternativePaths, RespectsTheLimitsOnRandomGraphs) {
+  const RoadGraph g = test::random_road_graph(500, 31, 0.0);
+  std::mt19937 rng(17);
+  std::uniform_int_distribution<NodeId> pick(0, static_cast<NodeId>(g.node_count() - 1));
+  const AlternativeOptions limits;
+  for (int i = 0; i < 40; ++i) {
+    const std::vector<NodeId> from{pick(rng)};
+    const std::vector<NodeId> to{pick(rng)};
+    const auto routes = find_alternative_paths(g, from, to, by_length(), 1.0, {Metric::kDistance, Algorithm::kAStar});
+    const auto best = find_shortest_path(g, from[0], to[0], {Metric::kDistance});
+    ASSERT_EQ(routes.empty(), !best.found);
+    if (routes.empty()) continue;
+    EXPECT_NEAR(routes[0].cost, best.cost, 1e-6 * std::max(1.0, best.cost));
+    std::vector<bool> used(g.edge_count(), false);
+    for (std::size_t k = 0; k < routes.size(); ++k) {
+      EXPECT_LE(routes[k].cost, routes[0].cost * limits.max_stretch + 1e-6);
+      double shared = 0;
+      for (EdgeId id : routes[k].edges) shared += used[id] ? g.edge(id).length_m : 0.0;
+      if (k > 0 && routes[k].length_m > 0) EXPECT_LE(shared / routes[k].length_m, limits.max_shared + 1e-9);
+      for (EdgeId id : routes[k].edges) used[id] = true;
+    }
+  }
+}
+
 TEST(ShortestCostsFrom, MultiSourceCustomCost) {
   const RoadGraph g = freeway_vs_street();
   const std::vector<NodeId> sources{1, 2};

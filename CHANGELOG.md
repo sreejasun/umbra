@@ -5,6 +5,12 @@ All notable changes to Umbra. Dates are in UTC.
 ## [Unreleased]
 
 ### Added
+- **Maps-app interface:** full-screen map with a floating search bar, screens with their own URLs
+  (place, directions, steps, options, best time, navigation, settings, account, safety, help, about),
+  a bottom sheet on phones and a side panel on desktop, 2-3 **route choices** (penalty method for
+  drives, shade preferences for walks), Profile & settings with a **light / dark / system theme**,
+  Developer mode for the engine statistics, and an Ask Umbra button that also helps find settings.
+- Live weather and traffic refresh on background threads, so a slow provider never delays a route.
 - **Sun-glare avoidance for drivers** (3× cost for minutes into a low sun, a 35° setting for drivers
   whose visor doesn't shade their eyes) and departure times for drives.
 - **Safety:** opt-in danger phrase (speech recognition) and SOS button with a 10-second countdown,
@@ -28,6 +34,10 @@ All notable changes to Umbra. Dates are in UTC.
   protection, request size and time limits.
 - Directions to ASU buildings (entrances via multi-target search), live weather (Open-Meteo),
   installable web app (PWA), Dockerfile, CodeQL and Dependabot.
+
+### Fixed
+- Emergency alerts take a fresh, high-accuracy location fix (started when the countdown starts)
+  instead of reusing the last known position, which could be stale.
 
 ### Changed
 - The HTTP layer is split into a shared query layer used by both the API and the assistant.

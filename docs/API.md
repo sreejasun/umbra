@@ -40,13 +40,17 @@ with one multi-source / multi-target search. `fromName` / `toName` (optional) la
 | `time` | departure, Unix seconds (default now). Live traffic applies only within 15 minutes of now |
 | `avoidGlare` | `false` \| `true`: minutes driven into a low sun cost 3× |
 | `glareMaxElevation` | sun elevation (5-60°) below which facing the sun counts as glare; default 20, the UI uses 35 for "my sun visor doesn't shade my eyes" |
+| `alternatives` | `false` \| `true`: also return up to 2 different routes |
 
 The response has `summary.durationS` under the conditions and `summary.freeFlowDurationS`
 without them, `conditions` (`traffic`, `weather.slowdown`, `sun`, `glare`, `glareS` seconds driven
 into the sun, and with `avoidGlare` `glareAvoided: {fastestDurationS, fastestGlareS}` for the plain
-fastest route), the departure `time`, turn-by-turn `steps`
+fastest route), the departure `time`, a `label` ("Fastest", "Shortest" or "Least sun glare") and
+`via` (main road), turn-by-turn `steps`
 (each with `glare: true` when the leg heads into a low sun), `geometry`, and a Dijkstra-vs-A\*
-`comparison`.
+`comparison`. With `alternatives=true`, `alternatives[]` holds the other routes, each with `label`
+("Shorter", "Fewer turns", "Less sun glare" or "via *road*"), `via`, `summary`, `conditions.glareS`,
+`geometry` and `steps`.
 
 <details>
 <summary>Example (trimmed)</summary>
@@ -79,12 +83,15 @@ fastest route), the departure `time`, turn-by-turn `steps`
 | `avoidStairs` | `false` \| `true`: step-free route (no stairs or `wheelchair=no` ways) |
 | `preferLit` | `true` \| `false`: after dark, prefer lit ways |
 | `viaWater` | `false` \| `true`: stop at the drinking fountain that adds the least cost |
+| `alternatives` | `false` \| `true`: also return the walks for the other shade preferences |
 | `algorithm`, `explored` | as for `/api/route` |
 
 The response has `preferred` and `shortest` routes (each with `summary`: distance, duration,
 `shadePct`, `litPct`, `unlitPct`; `geometry`; shaded/sunny `runs`; `steps` on `preferred`), plus
 `sun`, `sunStrength`, `weather`, `lighting` (whether the night preference applied), `avoidStairs`
-and `via` (`{name, position}` of the water stop).
+and `via` (`{name, position}` of the water stop), `label` (e.g. "Balanced shade"), and with
+`alternatives=true` an `alternatives[]` array of walks (`label`, `preference`, `summary`, `geometry`,
+`runs`, `steps`) for the other shade preferences that take different paths.
 
 ## Best time to leave: `GET /api/walk/departures`
 

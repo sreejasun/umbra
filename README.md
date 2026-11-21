@@ -14,19 +14,20 @@ question in plain English.
 ![CMake](https://img.shields.io/badge/build-CMake-064F8C?logo=cmake)
 ![Data](https://img.shields.io/badge/data-OpenStreetMap-7EBC6F?logo=openstreetmap)
 
-![Umbra: fastest route from ASU to Tempe Marketplace, with the explored search frontier](docs/images/screenshot-light.jpg)
+![Umbra: three driving routes from ASU to Tempe Marketplace; the selected one in blue, the alternatives in grey](docs/images/screenshot-light.jpg)
 
 ## Features
 
 | | |
 |---|---|
+| **A real maps app** | Full-screen map with a floating search bar (Google / Apple Maps style); every screen has its own URL, so Back works; a bottom sheet on phones and a side panel on desktop; **2-3 route choices** to pick from; Profile & settings; light, dark or system theme. |
 | **Drive** | Fastest or shortest route with Dijkstra / A\*, one-way streets and speed limits; **live traffic** (HERE, optional key); **rain, fog and snow slowdowns** from FHWA road-weather research; **sun-glare avoidance**: steer away from roads heading into a low sun, with a setting for drivers whose visor doesn't shade their eyes. |
 | **Walk in shade** | Shadows from real buildings and trees for any date and time, traded off against distance (*"Adds 340 ft (+8%) to walk 25 more percentage points in the shade"*); **live weather** sets how much shade is worth and rates how pleasant the walk is. |
 | **Plan around the heat** | **Best time to leave** compares up to 16 departure times; **stop for water** routes via the drinking fountain that adds the least; **step-free** routes avoid stairs; after dark, routes prefer **lit streets**. |
 | **ASU buildings** | Search 194 buildings by name or code (*Hayden Library*, *COOR*, *MU*); routes end at the entrance that is quickest to reach. |
 | **Navigation** | Location shown as soon as the app opens; follow-me navigation with **spoken turns** and automatic re-routing. |
-| **Safety** | Opt-in **danger phrase** (speech recognition) or an **SOS** button starts a 10-second cancellable countdown, then texts your emergency contact your location and offers a one-tap call to them or 911. |
-| **Ask Umbra** | A Grok-powered assistant (optional key) that answers *"When is it coolest to walk to the MU today?"* by calling Umbra's own engine as tools: it never makes up a route. |
+| **Safety** | Opt-in **danger phrase** (speech recognition) or an **SOS** button starts a 10-second cancellable countdown, then texts your emergency contact your **current** location (a fresh GPS fix taken during the countdown) and offers a one-tap call to them or 911. |
+| **Ask Umbra** | The button at the bottom right. A Grok-powered assistant (optional key) that answers *"When is it coolest to walk to the MU today?"* by calling Umbra's own engine as tools (it never makes up a route), and *"Where do I set my emergency contact?"*. Quick links work without a key. |
 | **Accounts** | Saved places and recent trips; export or delete everything at any time. |
 | **Anywhere** | Installable on iPhone and Android (web-app manifest, offline shell), dark mode, shareable links, accessible search. |
 
@@ -34,22 +35,42 @@ question in plain English.
 
 | | |
 |---|---|
-| **Algorithms from scratch** | Dijkstra and A\* on a hand-written **indexed binary min-heap with decrease-key**, generalised to **multi-source / multi-target** search; **Kosaraju's SCC**; a **CSR graph**; **uniform-grid spatial indexes**; an **inverted-index** search engine with typo tolerance; **convex hulls**; a **2-D DDA** grid traversal: no graph or geometry libraries. |
+| **Algorithms from scratch** | Dijkstra and A\* on a hand-written **indexed binary min-heap with decrease-key**, generalised to **multi-source / multi-target** search; **alternative routes** by the penalty method; **Kosaraju's SCC**; a **CSR graph**; **uniform-grid spatial indexes**; an **inverted-index** search engine with typo tolerance; **convex hulls**; a **2-D DDA** grid traversal: no graph or geometry libraries. |
 | **Physics** | NOAA solar position; exact prism shadow tests; a Meinel clear-sky model that turns forecast irradiance into *sun strength*; NWS heat-index comfort bands; FHWA weather speed factors. |
 | **Real data** | 13,025 intersections and 23,627 road segments, a 63k-node pedestrian network, 15,685 buildings, 1,822 trees, 194 ASU buildings and 15 water fountains from OpenStreetMap; live Open-Meteo weather and HERE traffic. |
-| **Backend** | C++20 HTTP server (cpp-httplib) with SQLite + libsodium accounts, a cached upstream layer with back-off, an LLM tool-calling loop, rate limiting and a strict Content-Security-Policy. |
+| **Backend** | C++20 HTTP server (cpp-httplib) with SQLite + libsodium accounts, live data refreshed on background threads (a slow provider never delays a request), an LLM tool-calling loop, rate limiting and a strict Content-Security-Policy. |
 | **Fast** | A drive search takes **≈ 0.6 ms** and a shade-aware walk ≈ 15–20 ms; one process serves ~2,150 routes/s (see [Capacity](docs/DEPLOYMENT.md#5-capacity)). |
-| **Verified** | 158 GoogleTest cases (property tests against Bellman-Ford, brute force and all-pairs search; traffic / rain / snow / fog / night / glare scenarios; account security; the assistant against a fake model) and 11 JavaScript tests (navigation, safety, departures). CI runs Release and **ASan + UBSan** builds on Linux and macOS, a Docker smoke test and CodeQL. |
+| **Verified** | 162 GoogleTest cases (property tests against Bellman-Ford, brute force and all-pairs search; alternative-route limits; traffic / rain / snow / fog / night / glare scenarios; account security; the assistant against a fake model) and 14 JavaScript tests (navigation, emergency location, safety, departures). CI runs Release and **ASan + UBSan** builds on Linux and macOS, a Docker smoke test and CodeQL. |
 
-<p align="center"><img src="docs/images/search.jpg" alt="Searching for a destination: typing 'tempe marketpl' suggests Tempe Marketplace" width="760"></p>
+<p align="center"><img src="docs/images/search.jpg" alt="Typing 'hayden' in the search bar suggests Hayden Library and other places, buildings and streets" width="760"></p>
+
+## The app
+
+<p align="center">
+  <img src="docs/images/mobile.jpg" alt="Phone: route choices in a bottom sheet with live weather" width="300">
+  &nbsp;&nbsp;
+  <img src="docs/images/mobile-settings.jpg" alt="Phone: Profile and settings with emergency, theme, help and account" width="300">
+</p>
+
+| Screen | What it does |
+|---|---|
+| Map | Search bar with the logo and your profile; locate, SOS and Ask Umbra buttons; nothing else |
+| Place | Name and details of a search result or dropped pin: **Directions**, Start here, Save |
+| Directions | From / To, Drive / Walk, departure time, route options; 2-3 route cards (tap one, or tap a grey line on the map) |
+| Steps, Best time, Navigation | Turn-by-turn list; departure-time comparison; follow-me navigation with voice and a Stop button |
+| Profile & settings | Account and saved places, Emergency, theme (System / Light / Dark), Help, Developer mode, About, Download my data, Sign out, Delete account |
+
+The algorithm details (Dijkstra vs A\*, nodes explored, the search animation) are behind **Developer
+mode** in Settings, so the app stays clean while the engine stays easy to inspect.
 
 ## Walk in shade
 
-![Shade-aware walk across ASU at 3 PM in July: the indigo stretches are in building shadow, the dotted line is the plain shortest walk](docs/images/walk-shade.jpg)
+![Shade-aware walk across ASU at 3 PM in July: indigo stretches are in building shadow, orange ones in sun; the other choices are grey](docs/images/walk-shade.jpg)
 
-At 3:00 PM on July 15 the sun is 56° up in the west, so buildings cast shadows to the east. The shortest
-walk from the Memorial Union area to Mill Ave & 5th St (dotted) is **22 %** shaded; the balanced
-shade-aware route uses the east sides of north–south streets and is **48 %** shaded for **+8 %** distance.
+At 3:00 PM on July 15 the sun is 56° up in the west, so buildings cast shadows to the east. Walking from
+the Memorial Union area to Mill Ave & 5th St, the shortest route (grey) is **23 %** shaded; the balanced
+shade-aware route uses the east sides of north–south streets and is **48 %** shaded for **+9 %**
+distance, and *Most shade* reaches 51 %.
 
 | Preference | Cost of a metre in direct sun (clear sky) |
 |---|---|
@@ -70,17 +91,26 @@ lighting 1.25 m. **Step-free** walks treat stairs (and `wheelchair=no` ways) as 
 water** picks the fountain *s* minimising cost(start, *s*) + cost(*s*, end) with two multi-source
 Dijkstra runs, instead of one route per fountain.
 
-<p align="center"><img src="docs/images/walk-shadows-dark.jpg" alt="Building shadows at 3 PM drawn over the map in dark mode" width="760"></p>
+<p align="center"><img src="docs/images/walk-shadows-dark.jpg" alt="The same walk in the dark theme" width="760"></p>
 
 ## Directions to ASU buildings
 
-![Most-shade walk from Coor Hall to Hayden Library, ending at the library's mapped entrance, with live weather in the sidebar](docs/images/walk-building.jpg)
+![Walk from the Memorial Union to Hayden Library in the evening: it ends at the library's mapped entrance and prefers lit streets](docs/images/walk-building.jpg)
 
 Each building knows its mapped entrances or, where none are mapped, 12 points around its footprint.
 All of them become targets of **one** multi-target search, so the route ends at the door that is
 quickest to reach (and leaves by the best exit when a building is the start). The A\* heuristic becomes
 the distance to the *nearest* target, which keeps it admissible and consistent. The data comes from
 OpenStreetMap; ASU's own campus map has no open data license, so it is not copied here.
+
+## Route choices
+
+Like Google Maps, Umbra offers 2-3 routes. **Drives** use the *penalty method*: after each search the
+roads of the route found cost 1.4× more, so the next search prefers other roads; a candidate is kept
+if it costs at most 35 % more than the best and shares at most 75 % of its length with the routes
+already kept. Each is labelled by what makes it different (*Shorter*, *Fewer turns*, *Less sun glare*)
+or by its main road (*via South Smith Road*). **Walks** offer one route per shade preference
+(*Shortest*, *Balanced shade*, *Most shade*) when they take different paths.
 
 ## Driving conditions
 
@@ -237,13 +267,14 @@ flowchart LR
 | Priority queue | Indexed binary min-heap with **decrease-key** (position table) | push / pop / decrease-key O(log V) |
 | Shortest path | Dijkstra; A\* with admissible, consistent great-circle heuristic | O((V + E) log V) |
 | Building entrances | Multi-source / multi-target search (virtual super-source; heuristic = distance to nearest target) | one search instead of \|S\| × \|T\| |
+| Route choices | Penalty method with a stretch limit and an overlap limit | up to 7 searches |
 | Water stop | Two multi-source Dijkstra runs, then argmin over stops of d(start, s) + d(s, end) | 2 searches instead of one per stop |
 | Connectivity | Kosaraju's SCC, iterative DFS | O(V + E) |
 | Nearest node | Uniform grid with ring search | O(k) for k nodes in visited cells |
 | Text search | Inverted index over a sorted vocabulary; prefix via binary search; Levenshtein ≤ 1 fallback | O(q log W + matches) |
 | Shadows | Prism shadow test, uniform grid + Amanatides–Woo DDA traversal | O(cells on ray + candidates) per point |
 | Traffic matching | Provider segments bucketed in a uniform grid; nearest same-direction segment per edge | O(E · segments per cell) per refresh |
-| Live feeds | `CachedResource<T>`: mutex-guarded refresh, failure back-off, max age, shared immutable snapshots | O(1) per request |
+| Live feeds | `CachedResource<T>`: background refresh thread, failure back-off, max age, shared immutable snapshots | O(1) per request, never waits for the provider |
 | Rate limiting | Token bucket per client, bounded memory | O(1) per request |
 
 Design notes, the security model and the testing strategy: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -259,8 +290,9 @@ Every endpoint: [docs/API.md](docs/API.md).
 │   ├── service/            RouteService (snap, search, directions), WalkPlanner, SearchIndex
 │   ├── storage/            UserStore: SQLite + libsodium accounts
 │   └── server/             HTTP API, trip queries, assistant, security, config, libcurl client, main
-├── web/                    Web app: HTML, CSS, ES modules, manifest, service worker, icons
-├── tests/                  GoogleTest suite (158 cases), web/ unit tests (Node), hand-written fixtures
+├── web/                    Web app: HTML, CSS, ES modules (screens, sheet, map, search, navigation,
+│                           safety, account, assistant), manifest, service worker, icons
+├── tests/                  GoogleTest suite (162 cases), web/ unit tests (Node, 14), hand-written fixtures
 ├── tools/benchmark.cpp     Dijkstra vs A* benchmark
 ├── scripts/                fetch_all.sh and per-dataset Overpass scripts
 ├── data/                   Bundled Tempe extracts (ODbL)

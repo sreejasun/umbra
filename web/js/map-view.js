@@ -1,4 +1,4 @@
-// Leaflet map: base tiles, A/B markers, explored-node animation and the route line.
+// Leaflet map: base tiles, A/B markers, the location dot, explored-node animation and routes.
 /* global L */
 
 // Standard OpenStreetMap tiles: free with attribution, no API key required.
@@ -23,13 +23,16 @@ function pinIcon(kind) {
 export class MapView {
   /**
    * @param {string} elementId
-   * @param {{onMapClick: Function, onMarkerMoved: Function}} handlers
+   * @param {{onMapClick: Function, onMarkerMoved: Function, onViewChanged?: Function}} handlers
+   * @param {HTMLElement} locateButton  shows the location state ("loading", "active")
    */
-  constructor(elementId, handlers) {
+  constructor(elementId, handlers, locateButton) {
     this.handlers = handlers;
+    this.locateButton = locateButton;
+    // Space covered by floating UI, so routes are framed in the visible part of the map.
+    this.padding = { top: 80, right: 70, bottom: 24, left: 24 };
     this.map = L.map(elementId, { zoomControl: false, preferCanvas: true, zoomSnap: 0.25, zoomDelta: 0.5 });
-    L.control.zoom({ position: "topright" }).addTo(this.map);
-    L.control.scale({ position: "bottomright", imperial: true, metric: true }).addTo(this.map);
+    L.control.zoom({ position: "topright" }).addTo(this.map); // desktop: under the round buttons; hidden on phones
 
     this.tiles = L.tileLayer(TILE_URL, { attribution: ATTRIBUTION, maxZoom: 19 }).addTo(this.map);
 
@@ -46,7 +49,6 @@ export class MapView {
     this.stepMarker = null;
     this.animationToken = null;
 
-    this.addLocateControl();
     this.map.on("click", (e) => this.handlers.onMapClick(e.latlng));
     this.map.on("moveend", () => this.handlers.onViewChanged?.());
   }
@@ -65,28 +67,14 @@ export class MapView {
 
   // -------------------------------------------------------- my location
 
-  addLocateControl() {
-    const Locate = L.Control.extend({
-      options: { position: "topright" },
-      onAdd: () => {
-        const bar = L.DomUtil.create("div", "leaflet-bar");
-        const button = L.DomUtil.create("a", "locate-btn", bar);
-        button.href = "#";
-        button.role = "button";
-        button.title = "Show my location";
-        button.setAttribute("aria-label", "Show my location");
-        button.innerHTML =
-          '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="8"/><path d="M12 1v3m0 16v3M1 12h3m16 0h3"/></svg>';
-        L.DomEvent.disableClickPropagation(bar);
-        L.DomEvent.on(button, "click", (e) => {
-          L.DomEvent.preventDefault(e);
-          this.handlers.onLocate?.();
-        });
-        this.locateButton = button;
-        return bar;
-      },
-    });
-    new Locate().addTo(this.map);
+  /** Pixels hidden behind floating UI on each side. */
+  setPadding(padding) {
+    this.padding = { ...this.padding, ...padding };
+  }
+
+  fitOptions(maxZoom) {
+    const { top, right, bottom, left } = this.padding;
+    return { paddingTopLeft: [left + 30, top + 30], paddingBottomRight: [right + 30, bottom + 30], maxZoom };
   }
 
   /** "idle" | "loading" | "active" */
@@ -230,31 +218,47 @@ export class MapView {
     });
   }
 
-  drawRoute(geometry) {
-    if (geometry.length < 2) return;
-    const casing = L.polyline(geometry, {
-      color: "#ffffff",
-      weight: 9,
-      opacity: 0.95,
-      lineCap: "round",
-      lineJoin: "round",
-      interactive: false,
-    });
-    const line = L.polyline(geometry, {
-      color: cssVar("--accent"),
-      weight: 5,
-      opacity: 1,
-      lineCap: "round",
-      lineJoin: "round",
-      interactive: false,
-    });
-    this.routeLayer.addLayer(casing).addLayer(line);
-    // Fade the search frontier so the final route reads clearly on top of it.
-    this.exploredLayer.eachLayer((dot) => dot.setStyle({ fillOpacity: 0.22 }));
+  /**
+   * Draw route choices: the others in grey (click to select), the selected one
+   * on top, in the accent colour or, for walks, by shade and sun.
+   * @param {{geometry: number[][], runs?: {shaded: boolean, path: number[][]}[]}[]} routes
+   * @param {number} selected  index into routes
+   * @param {(index: number) => void} onSelect
+   * @param {{fit?: boolean}} options
+   */
+  drawRoutes(routes, selected, onSelect, { fit = true } = {}) {
+    this.routeLayer.clearLayers();
+    const line = (path, style) =>
+      L.polyline(path, { lineCap: "round", lineJoin: "round", interactive: false, ...style }).addTo(this.routeLayer);
 
-    const bounds = line.getBounds();
-    if (!this.map.getBounds().contains(bounds)) {
-      this.map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
+    routes.forEach((route, i) => {
+      if (i === selected || route.geometry.length < 2) return;
+      line(route.geometry, { color: "#ffffff", weight: 9, opacity: 0.9 });
+      const alt = line(route.geometry, { color: cssVar("--alt-route"), weight: 6, opacity: 1, interactive: true, className: "route-alt" });
+      alt.on("click", (e) => {
+        L.DomEvent.stop(e);
+        onSelect(i);
+      });
+    });
+
+    const chosen = routes[selected];
+    if (chosen && chosen.geometry.length >= 2) {
+      line(chosen.geometry, { color: "#ffffff", weight: 10, opacity: 0.95 });
+      if (chosen.runs) {
+        const shade = cssVar("--shade");
+        const sun = cssVar("--sun");
+        for (const run of chosen.runs) line(run.path, { color: run.shaded ? shade : sun, weight: 6, opacity: 1 });
+      } else {
+        line(chosen.geometry, { color: cssVar("--accent"), weight: 6, opacity: 1 });
+      }
+    }
+    // Fade the search frontier so the routes read clearly on top of it.
+    this.exploredLayer.eachLayer((dot) => dot.setStyle({ fillOpacity: 0.2 }));
+
+    if (fit) {
+      const bounds = L.latLngBounds(routes.flatMap((r) => r.geometry));
+      // Walks are short: frame them closely so shade colours and shadows (zoom >= 15) show.
+      if (bounds.isValid()) this.map.fitBounds(bounds, this.fitOptions(chosen?.runs ? 17 : 16));
     }
   }
 
@@ -264,60 +268,9 @@ export class MapView {
     this.map.flyTo(latlng, Math.max(this.map.getZoom(), 15), { duration: 0.6 });
   }
 
-  /**
-   * Walking route coloured by shade, with the plain shortest route dotted underneath.
-   * @param {{shaded: boolean, path: number[][]}[]} runs
-   * @param {number[][] | null} shortestGeometry  null when it equals the chosen route
-   */
-  drawWalkRoute(runs, shortestGeometry) {
-    if (shortestGeometry && shortestGeometry.length >= 2) {
-      L.polyline(shortestGeometry, {
-        color: "#ffffff",
-        weight: 7,
-        opacity: 0.85,
-        lineCap: "round",
-        interactive: false,
-      }).addTo(this.routeLayer);
-      L.polyline(shortestGeometry, {
-        color: cssVar("--shortest"),
-        weight: 4,
-        opacity: 1,
-        dashArray: "1 8",
-        lineCap: "round",
-        interactive: false,
-      }).addTo(this.routeLayer);
-    }
-
-    const all = runs.flatMap((r) => r.path);
-    if (all.length < 2) return;
-    L.polyline(all, {
-      color: "#ffffff",
-      weight: 9,
-      opacity: 0.95,
-      lineCap: "round",
-      lineJoin: "round",
-      interactive: false,
-    }).addTo(this.routeLayer);
-
-    const shade = cssVar("--shade");
-    const sun = cssVar("--sun");
-    for (const run of runs) {
-      L.polyline(run.path, {
-        color: run.shaded ? shade : sun,
-        weight: 5,
-        opacity: 1,
-        lineCap: "round",
-        lineJoin: "round",
-        interactive: false,
-      }).addTo(this.routeLayer);
-    }
-    this.exploredLayer.eachLayer((dot) => dot.setStyle({ fillOpacity: 0.22 }));
-
-    // Walks are short: always frame them closely so shade colours (and the
-    // shadow layer, which needs zoom >= 15) are visible.
-    const bounds = L.latLngBounds(all);
-    if (shortestGeometry) bounds.extend(L.latLngBounds(shortestGeometry));
-    this.map.fitBounds(bounds, { padding: [70, 70], maxZoom: 17 });
+  /** Follow the user while navigating. */
+  follow(latlng) {
+    this.map.setView(latlng, Math.max(this.map.getZoom(), 17), { animate: true });
   }
 
   showStep(latlng) {

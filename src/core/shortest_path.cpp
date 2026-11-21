@@ -150,6 +150,39 @@ SearchResult find_shortest_path_between(const RoadGraph& graph, std::span<const 
   return search(graph, sources, targets, cost, min_cost_per_meter, options);
 }
 
+std::vector<SearchResult> find_alternative_paths(const RoadGraph& graph, std::span<const NodeId> sources,
+                                                std::span<const NodeId> targets, const EdgeCostFn& cost,
+                                                double min_cost_per_meter, const SearchOptions& options,
+                                                const AlternativeOptions& limits) {
+  if (!cost) throw std::invalid_argument("find_alternative_paths: cost function is empty");
+  std::vector<SearchResult> routes;
+  if (limits.max_routes == 0) return routes;
+
+  std::vector<double> factor(graph.edge_count(), 1.0);
+  std::vector<bool> used(graph.edge_count(), false);  // edges of kept routes
+  const EdgeCostFn penalised = [&](EdgeId id, const Edge& e) { return cost(id, e) * factor[id]; };
+
+  for (std::size_t attempt = 0; attempt <= limits.max_attempts && routes.size() < limits.max_routes; ++attempt) {
+    SearchResult r = search(graph, sources, targets, penalised, min_cost_per_meter, options);
+    if (!r.found) break;
+    double true_cost = 0.0;
+    double shared_m = 0.0;
+    for (EdgeId id : r.edges) {
+      true_cost += cost(id, graph.edge(id));
+      if (used[id]) shared_m += graph.edge(id).length_m;
+      factor[id] *= limits.penalty;
+    }
+    r.cost = true_cost;
+    if (!routes.empty()) {
+      if (true_cost > routes.front().cost * limits.max_stretch) continue;
+      if (r.length_m > 0 && shared_m / r.length_m > limits.max_shared) continue;
+    }
+    for (EdgeId id : r.edges) used[id] = true;
+    routes.push_back(std::move(r));
+  }
+  return routes;
+}
+
 std::vector<double> shortest_costs_from(const RoadGraph& graph, NodeId source, Metric metric) {
   return shortest_costs_from(graph, std::span(&source, 1),
                              [metric](EdgeId, const Edge& e) { return edge_weight(e, metric); });

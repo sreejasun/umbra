@@ -1,4 +1,5 @@
-// "Ask Umbra": a chat panel backed by the server's Grok-powered trip assistant.
+// Help & Ask Umbra (#/assistant): quick links to settings, plus a chat with the
+// server's Grok-powered assistant, which can find settings and plan trips.
 
 import { api } from "./api.js";
 
@@ -17,21 +18,17 @@ export class AssistantPanel {
     this.getPosition = getPosition;
     this.needsSignIn = needsSignIn;
     this.openSignIn = openSignIn;
-    this.panel = $("assistant");
     this.log = $("assistant-log");
-    $("assistant-btn").hidden = false;
-    $("assistant-btn").addEventListener("click", () => this.toggle());
-    $("assistant-close").addEventListener("click", () => this.toggle(false));
+    $("assistant-form").hidden = false;
     $("assistant-form").addEventListener("submit", (e) => {
       e.preventDefault();
       this.ask();
     });
   }
 
-  toggle(open = this.panel.hidden) {
-    this.panel.hidden = !open;
-    $("assistant-btn").setAttribute("aria-expanded", String(open));
-    if (open) $("assistant-input").focus();
+  /** Called when the assistant screen is shown. */
+  show() {
+    $("assistant-input").focus();
   }
 
   add(role, text) {

@@ -51,6 +51,7 @@ WalkQuery walk_params(const httplib::Request& req) {
   q.options.prefer_lit = flag_param(req, "preferLit", true);
   q.live_weather = live_param(req, "weather");
   q.via_water = flag_param(req, "viaWater", false);
+  q.alternatives = flag_param(req, "alternatives", false);
   return q;
 }
 
@@ -329,6 +330,7 @@ void register_api(httplib::Server& server, const ApiContext& ctx) {
     q.live_weather = live_param(req, "weather");
     q.unix_time = time_or_now(req);
     q.avoid_glare = flag_param(req, "avoidGlare", false);
+    q.alternatives = flag_param(req, "alternatives", false);
     if (req.has_param("glareMaxElevation")) {
       const auto deg = parse_double(req.get_param_value("glareMaxElevation"));
       if (!deg || *deg < 5 || *deg > 60) throw BadRequest("'glareMaxElevation' must be 5-60 degrees");

@@ -55,6 +55,7 @@ struct DriveQuery {
   std::int64_t unix_time = 0;  ///< departure; 0 = now
   bool avoid_glare = false;    ///< steer away from roads into a low sun
   double glare_max_elevation_deg = kGlareMaxElevationDeg;
+  bool alternatives = false;   ///< also return up to 2 different routes
 };
 
 struct WalkQuery {
@@ -63,6 +64,7 @@ struct WalkQuery {
   WalkOptions options;
   bool live_weather = true;
   bool via_water = false;
+  bool alternatives = false;  ///< also return the walks for the other shade preferences
 };
 
 [[nodiscard]] json search_query(const ApiContext& ctx, const std::string& query, std::size_t limit);

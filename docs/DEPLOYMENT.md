@@ -32,6 +32,22 @@ cloudflared tunnel --url http://localhost:8080      # or: ngrok http 8080
 
 No Android Studio or Xcode is needed: Umbra is a web app.
 
+### Developing the UI
+
+The web app is served straight from `web/`: edit a file, save, refresh (C++ changes need
+`cmake --build --preset release` and a server restart).
+
+- **Phone layout in Chrome:** DevTools (Cmd+Option+I) → device toolbar (Cmd+Shift+M). For an
+  iPhone 16, add a custom device of 393 × 852 at pixel ratio 3 with a mobile Safari user agent (or use
+  *iPhone 14 Pro*, the same size). Fake a location in ⋮ → More tools → Sensors. While developing,
+  tick *Update on reload* (Application → Service workers) and *Disable cache* (Network).
+- **Android emulator** (Android Studio → Device Manager): start the server, run
+  `adb reverse tcp:8080 tcp:8080`, open `http://localhost:8080` in the emulator's Chrome, set a location
+  under Extended controls → Location, and debug it from `chrome://inspect`.
+- **Safari:** Develop → Enter Responsive Design Mode.
+
+Microphone, voice, texting, calling and the home-screen install need a real phone.
+
 ## 3. Host it (always on)
 
 ```bash

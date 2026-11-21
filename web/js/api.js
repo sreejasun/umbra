@@ -67,6 +67,7 @@ function walkParams(from, to, o) {
     explored: flag(o.explored),
     avoidStairs: flag(o.avoidStairs),
     viaWater: flag(o.viaWater),
+    alternatives: flag(o.alternatives),
   };
 }
 
@@ -92,6 +93,7 @@ export const api = {
       time: options.time,
       avoidGlare: flag(options.avoidGlare),
       glareMaxElevation: options.glareMaxElevation ?? 20,
+      alternatives: flag(options.alternatives),
     }),
 
   // Accounts

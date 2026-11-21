@@ -46,6 +46,18 @@ json weather_json(const WeatherSample& w, const SunPosition& sun) {
           {"source", "Open-Meteo"}};
 }
 
+/// The longest leg's street of `route` that `other` does not use: "via Rural Road".
+std::string main_street(const Route& route, const Route& other) {
+  const RouteStep* best = nullptr;
+  for (const RouteStep& step : route.steps) {
+    if (step.street.empty() || step.maneuver == "arrive") continue;
+    const bool shared = std::any_of(other.steps.begin(), other.steps.end(),
+                                    [&](const RouteStep& o) { return o.street == step.street; });
+    if (!shared && (best == nullptr || step.length_m > best->length_m)) best = &step;
+  }
+  return best != nullptr ? best->street : "another road";
+}
+
 /// Label the route's ends with names the user picked, instead of the nearest street.
 void apply_names(Route& route, const std::string& from_name, const std::string& to_name) {
   if (!from_name.empty()) route.origin.label = from_name;
@@ -79,6 +91,15 @@ json walk_route_json(const WalkRoute& walk, bool with_steps) {
     out["steps"] = steps;
   }
   return out;
+}
+
+const char* walk_label(ShadePreference p) {
+  switch (p) {
+    case ShadePreference::kShortest: return "Shortest";
+    case ShadePreference::kBalanced: return "Balanced shade";
+    case ShadePreference::kMaxShade: return "Most shade";
+  }
+  return "Walk";
 }
 
 const WalkPlanner& require_walk(const ApiContext& ctx) {
@@ -191,15 +212,49 @@ json drive_query(const ApiContext& ctx, const DriveQuery& q) {
     avoided = {{"fastestDurationS", round_to(plain_duration, 1)}, {"fastestGlareS", round_to(plain_glare, 1)}};
   }
 
-  // Flag directions legs that head into the sun (straight-line heading of each leg).
-  json steps = json::array();
-  for (std::size_t i = 0; i < route.steps.size(); ++i) {
-    json step = to_json(route.steps[i]);
-    if (i + 1 < route.steps.size() && route.steps[i].length_m > 0) {
-      const double heading = bearing_deg(route.steps[i].location, route.steps[i + 1].location);
-      step["glare"] = sun_glare(heading, sun, q.glare_max_elevation_deg);
+  // Directions, with legs that head into the sun flagged (straight-line heading of each leg).
+  auto steps_json = [&](const Route& r) {
+    json out = json::array();
+    for (std::size_t i = 0; i < r.steps.size(); ++i) {
+      json step = to_json(r.steps[i]);
+      if (i + 1 < r.steps.size() && r.steps[i].length_m > 0) {
+        const double heading = bearing_deg(r.steps[i].location, r.steps[i + 1].location);
+        step["glare"] = sun_glare(heading, sun, q.glare_max_elevation_deg);
+      }
+      out.push_back(std::move(step));
     }
-    steps.push_back(std::move(step));
+    return out;
+  };
+  const json steps = steps_json(route);
+  const char* primary_label = q.avoid_glare ? "Least sun glare" : q.metric == Metric::kTime ? "Fastest" : "Shortest";
+
+  // Alternatives: different roads (penalty method), labelled by how they differ.
+  json alternatives = json::array();
+  if (q.alternatives && search.found) {
+    SearchOptions quiet = options;
+    quiet.record_settled = false;
+    for (const SearchResult& r : find_alternative_paths(graph, sources, targets, cost, h_per_meter, quiet)) {
+      if (r.edges == search.edges) continue;
+      Route candidate = service.make_route(origins, destinations, r);
+      apply_names(candidate, q.from.name, q.to.name);
+      const auto [candidate_duration, candidate_glare] = times(candidate.search);
+      std::string label = "via " + main_street(candidate, route);
+      if (candidate.search.length_m < search.length_m * 0.99) {
+        label = "Shorter";
+      } else if (candidate_glare + 30 < glare_s) {
+        label = "Less sun glare";
+      } else if (candidate.steps.size() < route.steps.size()) {
+        label = "Fewer turns";
+      }
+      alternatives.push_back({{"label", label},
+                              {"via", main_street(candidate, route)},
+                              {"summary", {{"distanceM", round_to(candidate.search.length_m, 1)},
+                                           {"durationS", round_to(candidate_duration, 1)},
+                                           {"freeFlowDurationS", round_to(candidate.search.duration_s, 1)}}},
+                              {"conditions", {{"glare", candidate_glare > 0}, {"glareS", round_to(candidate_glare, 1)}}},
+                              {"geometry", path_json(candidate.geometry)},
+                              {"steps", steps_json(candidate)}});
+    }
   }
 
   json traffic = nullptr;
@@ -216,6 +271,8 @@ json drive_query(const ApiContext& ctx, const DriveQuery& q) {
       {"metric", to_string(q.metric)},
       {"algorithm", to_string(q.algorithm)},
       {"time", time},
+      {"label", primary_label},
+      {"via", main_street(route, Route{})},
       {"origin", to_json(route.origin)},
       {"destination", to_json(route.destination)},
       {"summary", {{"distanceM", round_to(search.length_m, 1)},
@@ -240,6 +297,7 @@ json drive_query(const ApiContext& ctx, const DriveQuery& q) {
       {"comparison", comparison},
       {"geometry", path_json(route.geometry)},
       {"steps", steps},
+      {"alternatives", alternatives},
       {"explored", explored},
       {"exploredStride", stride},
   };
@@ -264,11 +322,33 @@ json walk_query(const ApiContext& ctx, WalkQuery q) {
   const json explored = explored_json(graph, plan.preferred.route.search, stride);
   json via = nullptr;
   if (plan.via) via = {{"name", plan.via->name}, {"position", to_json(plan.via->position)}};
+
+  // Alternatives: the walk for each other shade preference, if it takes different paths.
+  json alternatives = json::array();
+  if (q.alternatives && !q.via_water && plan.preferred.route.search.found) {
+    std::vector<std::vector<EdgeId>> seen{plan.preferred.route.search.edges};
+    for (ShadePreference p : {ShadePreference::kShortest, ShadePreference::kBalanced, ShadePreference::kMaxShade}) {
+      if (p == plan.preference) continue;
+      WalkOptions options = q.options;
+      options.preference = p;
+      options.record_settled = false;
+      WalkPlan other = planner.plan(q.from.points, q.to.points, options);
+      const auto& edges = other.preferred.route.search.edges;
+      if (!other.preferred.route.search.found || std::find(seen.begin(), seen.end(), edges) != seen.end()) continue;
+      seen.push_back(edges);
+      apply_names(other.preferred.route, q.from.name, q.to.name);
+      json alt = walk_route_json(other.preferred, true);
+      alt["label"] = walk_label(p);
+      alt["preference"] = to_string(p);
+      alternatives.push_back(std::move(alt));
+    }
+  }
   return {
       {"found", plan.preferred.route.search.found},
       {"mode", "walk"},
       {"algorithm", to_string(q.options.algorithm)},
       {"preference", to_string(plan.preference)},
+      {"label", q.via_water ? "Via water" : walk_label(plan.preference)},
       {"time", q.options.unix_time},
       {"sun", to_json(plan.sun)},
       {"sunStrength", round_to(plan.sun_strength, 2)},
@@ -281,6 +361,7 @@ json walk_query(const ApiContext& ctx, WalkQuery q) {
       {"totalNodes", graph.node_count()},
       {"preferred", walk_route_json(plan.preferred, true)},
       {"shortest", walk_route_json(plan.shortest, false)},
+      {"alternatives", alternatives},
       {"explored", explored},
       {"exploredStride", stride},
   };

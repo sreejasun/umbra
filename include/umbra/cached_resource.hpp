@@ -6,6 +6,7 @@
 #include <mutex>
 #include <optional>
 #include <stdexcept>
+#include <thread>
 #include <utility>
 
 namespace umbra {
@@ -15,6 +16,11 @@ struct CachePolicy {
   std::chrono::seconds refresh_after{10 * 60};  ///< refetch at most this often
   std::chrono::seconds retry_after{60};         ///< wait this long after a failed fetch
   std::chrono::seconds max_age{3 * 60 * 60};    ///< stop serving data older than this
+  /// Fetch on a background thread: get() never waits for the upstream and
+  /// returns the previous value (or null) while a refresh runs. Servers use
+  /// this so a slow provider cannot slow user requests; tests use the default,
+  /// synchronous mode.
+  bool background = false;
 };
 
 /**
@@ -40,26 +46,55 @@ class CachedResource {
     if (!now_) throw std::invalid_argument("CachedResource: a clock is required");
   }
 
+  CachedResource(const CachedResource&) = delete;
+  CachedResource& operator=(const CachedResource&) = delete;
+
   /// Current value, or null if none could be fetched recently.
   [[nodiscard]] std::shared_ptr<const T> get() const {
-    const std::lock_guard lock(mutex_);
+    std::unique_lock lock(mutex_);
     const Clock::time_point now = now_();
     const bool fresh = fetched_at_ && now - *fetched_at_ < policy_.refresh_after;
     const bool backing_off = failed_at_ && now - *failed_at_ < policy_.retry_after;
-    if (!fresh && !backing_off) {
-      try {
-        value_ = std::make_shared<const T>(fetch_());
-        fetched_at_ = now;
-        failed_at_.reset();
-      } catch (const std::exception&) {
-        failed_at_ = now;  // keep serving the previous value while it is not too old
+    if (!fresh && !backing_off && !fetching_) {
+      fetching_ = true;
+      if (policy_.background) {
+        // The previous worker has finished (fetching_ was false), so joining is immediate.
+        if (worker_.joinable()) worker_.join();
+        worker_ = std::thread([this] { refresh(); });
+      } else {
+        lock.unlock();
+        refresh();
+        lock.lock();
       }
     }
-    if (fetched_at_ && now - *fetched_at_ > policy_.max_age) return nullptr;
+    if (fetched_at_ && now_() - *fetched_at_ > policy_.max_age) return nullptr;
     return value_;
   }
 
+  ~CachedResource() {
+    if (worker_.joinable()) worker_.join();
+  }
+
  private:
+  /// One fetch, outside the lock; the result is published under it.
+  void refresh() const {
+    std::shared_ptr<const T> fresh;
+    try {
+      fresh = std::make_shared<const T>(fetch_());
+    } catch (const std::exception&) {
+      // keep serving the previous value while it is not too old
+    }
+    const std::lock_guard lock(mutex_);
+    if (fresh) {
+      value_ = std::move(fresh);
+      fetched_at_ = now_();
+      failed_at_.reset();
+    } else {
+      failed_at_ = now_();
+    }
+    fetching_ = false;
+  }
+
   FetchFn fetch_;
   CachePolicy policy_;
   NowFn now_;
@@ -68,6 +103,8 @@ class CachedResource {
   mutable std::shared_ptr<const T> value_;
   mutable std::optional<Clock::time_point> fetched_at_;
   mutable std::optional<Clock::time_point> failed_at_;
+  mutable bool fetching_ = false;
+  mutable std::thread worker_;  // background mode only; joined before the members it uses are destroyed
 };
 
 }  // namespace umbra
